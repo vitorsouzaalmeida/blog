@@ -14,11 +14,16 @@ const pics = await Astro.glob("../../pics/*.{jpg,jpeg,png}");
       pics.map((pic) => (
         <div class="masonry-item">
           <Image
+            srcset={pic.default.src}
             src={pic.default}
-            alt="Gallery image"
+            alt={pic.default.src
+              .split("/")
+              .pop()
+              .split(".")[0]
+              .replace(/-/g, " ")}
             loading="lazy"
             class="grid-image"
-            quality={80}
+            quality={60}
           />
         </div>
       ))
