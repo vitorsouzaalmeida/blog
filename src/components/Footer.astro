@@ -1,26 +1,26 @@
 ---
-import { GITHUB_REPO_URL } from '../config';
-import Link from './Link.astro';
+import { GITHUB_REPO_URL } from "../config";
+import Link from "./Link.astro";
 
 const navLinks = [
   {
-    title: 'Blog',
-    href: '/blog',
+    title: "Blog",
+    href: "/blog",
     isExternal: false,
   },
   {
-    title: 'Tags',
-    href: '/tags',
+    title: "Tags",
+    href: "/tags",
     isExternal: false,
   },
   {
-    title: 'GitHub',
+    title: "GitHub",
     href: GITHUB_REPO_URL,
     isExternal: true,
   },
   {
-    title: 'RSS',
-    href: 'rss.xml',
+    title: "RSS",
+    href: "rss.xml",
     isExternal: true,
   },
 ];
@@ -32,22 +32,24 @@ const navLinks = [
   </p>
   <nav>
     <ul>
-      {navLinks.map(link => (
-        <li>
-          <p>
-            <Link href={link.href} isExternal={link.isExternal}>
-              {link.title}
-            </Link>
-          </p>
-        </li>
-      ))}
+      {
+        navLinks.map((link) => (
+          <li>
+            <p>
+              <Link href={link.href} isExternal={link.isExternal}>
+                {link.title}
+              </Link>
+            </p>
+          </li>
+        ))
+      }
     </ul>
   </nav>
 </footer>
 
 <style>
   footer {
-    border-top: 1px solid rgba(0,0,0,0.2);
+    border-top: 1px solid rgba(0, 0, 0, 0.2);
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
@@ -58,5 +60,9 @@ const navLinks = [
   footer nav ul {
     display: flex;
     gap: var(--spacing-2x);
+  }
+
+  li {
+    list-style: none;
   }
 </style>
