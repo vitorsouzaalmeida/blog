@@ -32,7 +32,6 @@ const pics = await Astro.glob("../../pics/*.{jpg,jpeg,png}");
     }
   </div>
 
-  <!-- Modal/Lightbox -->
   <div id="imageModal" class="modal">
     <span class="close">&times;</span>
     <img class="modal-content" id="expandedImg" />
@@ -69,7 +68,6 @@ const pics = await Astro.glob("../../pics/*.{jpg,jpeg,png}");
       transform: scale(1.02);
     }
 
-    /* Modal styles */
     .modal {
       display: none;
       position: fixed;
@@ -109,7 +107,6 @@ const pics = await Astro.glob("../../pics/*.{jpg,jpeg,png}");
       z-index: 1000;
     }
 
-    /* Responsive breakpoints */
     @media (min-width: 640px) {
       .masonry-grid {
         columns: 2;
@@ -148,7 +145,6 @@ const pics = await Astro.glob("../../pics/*.{jpg,jpeg,png}");
   </style>
 
   <script>
-    // Only run the script on the client side
     document.addEventListener("DOMContentLoaded", () => {
       const modal = document.getElementById("imageModal");
       console.log({ modal });
@@ -156,7 +152,6 @@ const pics = await Astro.glob("../../pics/*.{jpg,jpeg,png}");
       const closeBtn = document.querySelector(".close");
       const gridImages = document.querySelectorAll(".grid-image");
 
-      // Add click handlers to all grid images
       gridImages.forEach((img) => {
         img.addEventListener("click", () => {
           modal.classList.add("show");
@@ -165,25 +160,21 @@ const pics = await Astro.glob("../../pics/*.{jpg,jpeg,png}");
         });
       });
 
-      // Close modal when clicking the close button
       closeBtn.addEventListener("click", (e) => {
         e.stopPropagation();
         closeModal();
       });
 
-      // Close modal when clicking outside the image
       modal.addEventListener("click", (e) => {
         if (e.target === modal) {
           closeModal();
         }
       });
 
-      // Prevent modal from closing when clicking the image itself
       modalImg.addEventListener("click", (e) => {
         e.stopPropagation();
       });
 
-      // Close modal with Escape key
       document.addEventListener("keydown", (e) => {
         if (e.key === "Escape") {
           closeModal();
