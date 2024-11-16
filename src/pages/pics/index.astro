@@ -147,7 +147,7 @@ const pics = await Astro.glob("../../pics/*.{jpg,jpeg,png}");
   <script>
     document.addEventListener("DOMContentLoaded", () => {
       const modal = document.getElementById("imageModal");
-      console.log({ modal });
+
       const modalImg = document.getElementById("expandedImg");
       const closeBtn = document.querySelector(".close");
       const gridImages = document.querySelectorAll(".grid-image");
@@ -182,6 +182,7 @@ const pics = await Astro.glob("../../pics/*.{jpg,jpeg,png}");
       });
 
       function closeModal() {
+        modalImg.src = "";
         modal.classList.remove("show");
         document.body.style.overflow = "";
       }
