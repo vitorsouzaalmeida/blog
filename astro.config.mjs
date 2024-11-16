@@ -6,7 +6,7 @@ import rehypeKatex from 'rehype-katex';
 import fs from 'node:fs/promises';
 import rehypePrettyCode from "rehype-pretty-code";
 
-import vercel from "@astrojs/vercel/static";
+import vercel from "@astrojs/vercel/serverless";
 
 const BLOG_DIR = './src/content/blog';
 
@@ -25,7 +25,7 @@ const getBlogRoutesRedirect = async () => {
 export default defineConfig({
   site: 'https://vitorsalmeida.com',
   integrations: [mdx(), sitemap()],
-  output: "static",
+  output: "server",
   adapter: vercel(),
   markdown: {
     syntaxHighlight: false,
