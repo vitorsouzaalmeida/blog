@@ -50,6 +50,14 @@ h2 {
   letter-spacing: 2px;
 }
 
+h3 {
+  font-weight: 700;
+  font-size: var(--font-size-md-m);
+  font-family: 'Merriweather';
+  line-height: 1.6;
+  letter-spacing: 2px;
+}
+
 p {
   font-size: var(--font-size-md-m);
   line-height: 1.3;
@@ -69,12 +77,12 @@ article code {
 }
 
 code {
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-md);
 }
 
-/* li {
-  list-style-type: none;
-} */
+ul > li {
+  font-size: var(--font-size-md-m);
+}
 
 .description > p {
   text-align: left;
