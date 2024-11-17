@@ -4,13 +4,25 @@ import Link from "./Link.astro";
 
 <div>
   <Link href="#">
-    <span>Go Back</span>
+    <span class="nav-link">Go Back</span>
   </Link>
   /
   <Link href="/">
-    <span>Home</span>
+    <span class="nav-link">Home</span>
   </Link>
 </div>
+
+<style>
+  .nav-link {
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 1.1rem;
+  }
+
+  a:hover {
+    text-decoration: underline;
+  }
+</style>
 
 <script>
   const link = document.querySelector("a");

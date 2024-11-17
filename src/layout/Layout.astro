@@ -1,33 +1,29 @@
 ---
 import "../styles/global.css";
 import Footer from "../components/Footer.astro";
-import { SITE } from '../config';
+import { SITE } from "../config";
 
 export interface Props {
-  ogImage?: string,
+  ogImage?: string;
   head?: {
     title?: string;
     description?: string;
-  }
+  };
 }
 const {
-  ogImage = 'og.png',
+  ogImage = "og.png",
   head = {
     title: SITE.title,
     description: SITE.description,
-  }
+  },
 } = Astro.props;
 
-const ogURL = new URL(
-  ogImage,
-  Astro.url.origin,
-).href;
+const ogURL = new URL(ogImage, Astro.url.origin).href;
 
 const canonicalURL = new URL(Astro.url.pathname, Astro.site).href;
-
 ---
 
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -35,7 +31,7 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site).href;
     <meta name="generator" content={Astro.generator} />
 
     <title>{head.title}</title>
-    <link rel="icon" href="../../public/v.svg" type="image/x-icon" />
+    <link rel="icon" href="/v.svg" type="image/x-icon" />
     <meta name="description" content={head.description} />
     <meta name="author" content={SITE.author} />
     <meta property="og:image" content={ogURL} />
@@ -51,31 +47,32 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site).href;
     <meta property="twitter:description" content={head.description} />
     <meta property="twitter:image" content={ogURL} />
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700;900&family=Roboto+Mono:wght@300;700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700;900&family=Roboto+Mono:wght@300;700&display=swap"
+      rel="stylesheet"
+    />
 
     <!-- Setup KaTeX -->
     <!-- See more here: https://katex.org/docs/browser.html -->
     <link
-    rel="stylesheet"
-    href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
-    integrity="sha384-n8MVd4RsNIU0tAv4ct0nTaAbDJwPJzDEaqSD1odI+WdtXRGWt2kTvGFasHpSy3SV"
-    crossorigin="anonymous"
-  />
-  <script
-    defer
-    src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"
-    integrity="sha384-XjKyOOlGwcjNTAIQHIpgOno0Hl1YQqzUOEleOLALmuqehneUG+vnGctmUb0ZY0l8"
-    crossorigin="anonymous"
-  ></script>
-  <script
-    defer
-    src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
-    integrity="sha384-+VBxd3r6XgURycqtZ117nYw44OOcIax56Z4dCRWbxyPt0Koah1uHoK0o4+/RRE05"
-    crossorigin="anonymous"
-    onload="renderMathInElement(document.body);"
-  ></script>
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+      integrity="sha384-n8MVd4RsNIU0tAv4ct0nTaAbDJwPJzDEaqSD1odI+WdtXRGWt2kTvGFasHpSy3SV"
+      crossorigin="anonymous"
+    />
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"
+      integrity="sha384-XjKyOOlGwcjNTAIQHIpgOno0Hl1YQqzUOEleOLALmuqehneUG+vnGctmUb0ZY0l8"
+      crossorigin="anonymous"></script>
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+      integrity="sha384-+VBxd3r6XgURycqtZ117nYw44OOcIax56Z4dCRWbxyPt0Koah1uHoK0o4+/RRE05"
+      crossorigin="anonymous"
+      onload="renderMathInElement(document.body);"></script>
   </head>
   <body>
     <main>
