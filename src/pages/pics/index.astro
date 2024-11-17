@@ -8,7 +8,7 @@ const pics = await Astro.glob("../../pics/*.{jpg,jpeg,png}");
 
 <Layout>
   <NavOptions />
-  <h1>pics</h1>
+  <h1>pics.</h1>
   <div class="masonry-grid">
     {
       pics.map((pic) => (
@@ -147,10 +147,23 @@ const pics = await Astro.glob("../../pics/*.{jpg,jpeg,png}");
   <script>
     document.addEventListener("DOMContentLoaded", () => {
       const modal = document.getElementById("imageModal");
+      if (!modal) return;
 
-      const modalImg = document.getElementById("expandedImg");
+      const modalImg = document.getElementById(
+        "expandedImg"
+      ) as HTMLImageElement & {
+        src: string;
+      };
+      if (!modalImg) return;
+
       const closeBtn = document.querySelector(".close");
-      const gridImages = document.querySelectorAll(".grid-image");
+      if (!closeBtn) return;
+
+      const gridImages = document.querySelectorAll(".grid-image") as NodeListOf<
+        Element & {
+          src: string;
+        }
+      >;
 
       gridImages.forEach((img) => {
         img.addEventListener("click", () => {
@@ -181,11 +194,11 @@ const pics = await Astro.glob("../../pics/*.{jpg,jpeg,png}");
         }
       });
 
-      function closeModal() {
+      const closeModal = () => {
         modalImg.src = "";
         modal.classList.remove("show");
         document.body.style.overflow = "";
-      }
+      };
     });
   </script>
 </Layout>
