@@ -44,6 +44,6 @@ export default defineConfig({
     ],
   },
   redirects: {
-    ...await getBlogRoutesRedirect(),
+    ...(await getBlogRoutesRedirect()),
   }
 });
