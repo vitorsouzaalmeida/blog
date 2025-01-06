@@ -1,0 +1,100 @@
+---
+import NavOptions from "../../components/NavOptions.astro";
+import Layout from "../../layout/Layout.astro";
+
+type ReadType = "article" | "book" | "tech" | "non-tech" | "other";
+type Reads = {
+  year: number;
+  items: {
+    title: string;
+    url: string;
+    type: ReadType[];
+  }[];
+};
+
+const reads: Reads[] = [
+  {
+    year: 2025,
+    items: [
+      {
+        title: "The Burnout Society",
+        url: "https://www.amazon.com/Burnout-Society-Byung-Chul-Han/dp/0804795096e",
+        type: ["book", "non-tech"],
+      },
+      {
+        title:
+          "Understanding ReplicaSet vs. StatefulSet vs. DaemonSet vs. Deployments",
+        url: "https://abhisman.notion.site/Understanding-ReplicaSet-vs-StatefulSet-vs-DaemonSet-vs-Deployments-a521f9a46ea446219d98be4972f2e16e",
+        type: ["article", "tech"],
+      },
+    ],
+  },
+];
+---
+
+<Layout>
+  <NavOptions />
+  <h1>reads.</h1>
+  <p class="description">A list of books and articles I've read.</p>
+
+  <section class="reads-container">
+    {
+      reads.map((yearGroup) => (
+        <div class="year-section">
+          <h2>{yearGroup.year}.</h2>
+          <ul>
+            {yearGroup.items.map((item) => (
+              <li>
+                <a href={item.url} target="_blank" rel="noopener noreferrer">
+                  {item.title}
+                </a>
+                <span class="type">{item.type.join(", ")}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))
+    }
+  </section>
+</Layout>
+
+<style>
+  .reads-container {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
+
+  .year-section {
+    margin-bottom: 1.5rem;
+  }
+
+  ul {
+    list-style-type: circle;
+    padding: 0;
+  }
+
+  li {
+    margin-bottom: 0.75rem;
+  }
+
+  .type {
+    font-size: 1rem;
+    color: #666;
+    margin-left: 0.5rem;
+  }
+
+  a:hover {
+    text-decoration: underline;
+  }
+
+  h1 {
+    margin-bottom: 0;
+    padding-bottom: 0;
+  }
+
+  .description {
+    margin-top: -2rem;
+    font-size: 1.1rem;
+  }
+</style>
