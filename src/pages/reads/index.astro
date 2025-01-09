@@ -3,13 +3,32 @@ import NavOptions from "../../components/NavOptions.astro";
 import Layout from "../../layout/Layout.astro";
 
 type ReadType = "article" | "book" | "video" | "tech" | "non-tech" | "other";
+type Month =
+  | "January"
+  | "February"
+  | "March"
+  | "April"
+  | "May"
+  | "June"
+  | "July"
+  | "August"
+  | "September"
+  | "October"
+  | "November"
+  | "December";
+
 type Reads = {
   year: number;
-  items: {
-    title: string;
-    url: string;
-    type: ReadType[];
-  }[];
+  items: [
+    {
+      month: Month;
+      entries: {
+        title: string;
+        url: string;
+        type: ReadType[];
+      }[];
+    },
+  ];
 };
 
 const reads: Reads[] = [
@@ -17,25 +36,31 @@ const reads: Reads[] = [
     year: 2025,
     items: [
       {
-        title: "The Burnout Society",
-        url: "https://www.amazon.com/Burnout-Society-Byung-Chul-Han/dp/0804795096",
-        type: ["book", "non-tech"],
-      },
-      {
-        title:
-          "Understanding ReplicaSet vs. StatefulSet vs. DaemonSet vs. Deployments",
-        url: "https://abhisman.notion.site/Understanding-ReplicaSet-vs-StatefulSet-vs-DaemonSet-vs-Deployments-a521f9a46ea446219d98be4972f2e16e",
-        type: ["article", "tech"],
-      },
-      {
-        title: "What Are AWS Savings Plans? How They Can Lower Your AWS Bill",
-        url: "https://www.cloudzero.com/blog/aws-savings-plans/",
-        type: ["article", "tech"],
-      },
-      {
-        title: "Why You Shouldn’t Build Your Next App in Rust",
-        url: "https://youtu.be/spXMLbHVEkQ?si=szhit2Ak7oPSWqZc",
-        type: ["video", "tech"],
+        month: "January",
+        entries: [
+          {
+            title: "The Burnout Society",
+            url: "https://www.amazon.com/Burnout-Society-Byung-Chul-Han/dp/0804795096",
+            type: ["book", "non-tech"],
+          },
+          {
+            title:
+              "Understanding ReplicaSet vs. StatefulSet vs. DaemonSet vs. Deployments",
+            url: "https://abhisman.notion.site/Understanding-ReplicaSet-vs-StatefulSet-vs-DaemonSet-vs-Deployments-a521f9a46ea446219d98be4972f2e16e",
+            type: ["article", "tech"],
+          },
+          {
+            title: "Why You Shouldn’t Build Your Next App in Rust",
+            url: "https://youtu.be/spXMLbHVEkQ?si=szhit2Ak7oPSWqZc",
+            type: ["video", "tech"],
+          },
+          {
+            title:
+              "What Are AWS Savings Plans? How They Can Lower Your AWS Bill",
+            url: "https://www.cloudzero.com/blog/aws-savings-plans/",
+            type: ["article", "tech"],
+          },
+        ],
       },
     ],
   },
@@ -53,17 +78,26 @@ const reads: Reads[] = [
     {
       reads.map((yearGroup) => (
         <div class="year-section">
-          <h2>{yearGroup.year}.</h2>
-          <ul>
-            {yearGroup.items.map((item) => (
-              <li>
-                <a href={item.url} target="_blank" rel="noopener noreferrer">
-                  {item.title}
-                </a>
-                <span class="type">{item.type.join(", ")}</span>
-              </li>
-            ))}
-          </ul>
+          <h1>{yearGroup.year}.</h1>
+          {yearGroup.items.map((monthGroup) => (
+            <div class="month-section">
+              <h3>{monthGroup.month}</h3>
+              <ul>
+                {monthGroup.entries.map((item) => (
+                  <li>
+                    <a
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {item.title}
+                    </a>
+                    <span class="type">{item.type.join(", ")}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </div>
       ))
     }
