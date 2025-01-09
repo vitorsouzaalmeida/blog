@@ -2,7 +2,7 @@
 import NavOptions from "../../components/NavOptions.astro";
 import Layout from "../../layout/Layout.astro";
 
-type ReadType = "article" | "book" | "tech" | "non-tech" | "other";
+type ReadType = "article" | "book" | "video" | "tech" | "non-tech" | "other";
 type Reads = {
   year: number;
   items: {
@@ -32,6 +32,11 @@ const reads: Reads[] = [
         url: "https://www.cloudzero.com/blog/aws-savings-plans/",
         type: ["article", "tech"],
       },
+      {
+        title: "Why You Shouldn’t Build Your Next App in Rust",
+        url: "https://youtu.be/spXMLbHVEkQ?si=szhit2Ak7oPSWqZc",
+        type: ["video", "tech"],
+      },
     ],
   },
 ];
@@ -40,7 +45,9 @@ const reads: Reads[] = [
 <Layout>
   <NavOptions />
   <h1>reads.</h1>
-  <p class="description">A list of books and articles I've read.</p>
+  <p class="description">
+    A list of books, articles and videos I've read or watched.
+  </p>
 
   <section class="reads-container">
     {
