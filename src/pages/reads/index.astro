@@ -19,16 +19,14 @@ type Month =
 
 type Reads = {
   year: number;
-  items: [
-    {
-      month: Month;
-      entries: {
-        title: string;
-        url: string;
-        type: ReadType[];
-      }[];
-    },
-  ];
+  items: {
+    month: Month;
+    entries: {
+      title: string;
+      url: string;
+      type: ReadType[];
+    }[];
+  }[];
 };
 
 const reads: Reads[] = [
@@ -50,7 +48,7 @@ const reads: Reads[] = [
             type: ["article", "tech"],
           },
           {
-            title: "Why You Shouldn’t Build Your Next App in Rust",
+            title: "Why You Shouldn't Build Your Next App in Rust",
             url: "https://youtu.be/spXMLbHVEkQ?si=szhit2Ak7oPSWqZc",
             type: ["video", "tech"],
           },
@@ -87,6 +85,23 @@ const reads: Reads[] = [
           },
         ],
       },
+      {
+        month: "February",
+        entries: [
+          {
+            title:
+              "I’m Lovin’ It: Exploiting McDonald’s APIs to hijack deliveries and order food for a penny",
+            url: "https://eaton-works.com/2024/12/19/mcdelivery-india-hack/",
+            type: ["article", "tech"],
+          },
+          {
+            title:
+              "DeepSeek might not be as disruptive as claimed, firm reportedly has 50,000 Nvidia GPUs and spent $1.6 billion on buildouts",
+            url: "https://www.tomshardware.com/tech-industry/artificial-intelligence/deepseek-might-not-be-as-disruptive-as-claimed-firm-reportedly-has-50-000-nvidia-gpus-and-spent-usd1-6-billion-on-buildouts",
+            type: ["article", "tech"],
+          },
+        ],
+      },
     ],
   },
 ];
@@ -106,7 +121,7 @@ const reads: Reads[] = [
           <h1>{yearGroup.year}.</h1>
           {yearGroup.items.map((monthGroup) => (
             <div class="month-section">
-              <h3>{monthGroup.month}</h3>
+              <h3 class="month-title">{monthGroup.month}</h3>
               <ul>
                 {monthGroup.entries.map((item) => (
                   <li>
@@ -166,5 +181,9 @@ const reads: Reads[] = [
 
   .description {
     font-size: 1.1rem;
+  }
+
+  .month-title {
+    padding-top: 1em;
   }
 </style>
