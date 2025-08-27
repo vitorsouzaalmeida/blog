@@ -51,15 +51,10 @@ const yo = new Date().getFullYear() - new Date(2004, 1, 4).getFullYear();
           )
           .slice(0, 5)
           .map((post) => (
-            <li>
-              <p>{post.data.pubDate.toISOString().split("T")[0]}</p>
+            <li class="post-item">
+              <p class="post-date">{post.data.pubDate.toISOString().split("T")[0]}</p>
               <Link href={`/blog/${post.slug}`}>
-                <p
-                  class="post-title
-                "
-                >
-                  {post.data.title}
-                </p>
+                <p class="post-title">{post.data.title}</p>
               </Link>
             </li>
           ))
@@ -80,21 +75,6 @@ const yo = new Date().getFullYear() - new Date(2004, 1, 4).getFullYear();
 
   .desc-ol li {
     margin-bottom: 0.5em;
-  }
-
-  .posts ul {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .posts ul li {
-    display: flex;
-    justify-content: space-between;
-    column-gap: var(--spacing-2x);
-  }
-
-  .posts :global(a) {
-    flex: 1;
   }
 
   .see-all-articles {

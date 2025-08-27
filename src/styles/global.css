@@ -157,3 +157,26 @@ u {
   text-decoration-style: wavy;
   text-underline-offset: 2px;
 }
+
+.post-item {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-4x);
+}
+
+.post-date {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Monaco, Inconsolata,
+    monospace;
+  font-size: var(--font-size-md);
+  flex-shrink: 0;
+  min-width: 10ch;
+}
+
+.post-title {
+  flex: 1;
+}
+
+.posts ul {
+  display: flex;
+  flex-direction: column;
+}

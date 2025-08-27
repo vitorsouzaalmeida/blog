@@ -21,8 +21,8 @@ const posts = await getCollection("blog");
               Math.floor(Number(a.data.pubDate) / 1000)
           )
           .map((post) => (
-            <li>
-              <p>{post.data.pubDate.toISOString().split("T")[0]}</p>
+            <li class="post-item">
+              <p class="post-date">{post.data.pubDate.toISOString().split("T")[0]}</p>
               <Link href={`/blog/${post.slug}`}>
                 <p class="post-title">{post.data.title}</p>
               </Link>
@@ -33,27 +33,3 @@ const posts = await getCollection("blog");
   </section>
 </Layout>
 
-<style>
-  .posts ul {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing);
-  }
-
-  .posts ul li {
-    display: flex;
-    align-items: baseline;
-    gap: var(--spacing-4x);
-  }
-
-  .posts ul li p:first-child {
-    font-family: ui-monospace, SFMono-Regular, "SF Mono", Monaco, Inconsolata,
-      monospace;
-    font-size: var(--font-size-md);
-    flex-shrink: 0;
-  }
-
-  .posts :global(a) {
-    flex: 1;
-  }
-</style>
