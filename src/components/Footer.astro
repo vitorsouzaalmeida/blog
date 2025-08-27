@@ -38,14 +38,14 @@ const navLinks = [
 
 <footer>
   <div class="footer-left">
-    <p>{new Date().getUTCFullYear()}</p>
+    <p class="year">{new Date().getUTCFullYear()}</p>
     <ThemeToggle />
   </div>
   <nav>
     <ul>
       {
         navLinks.map((link) => (
-          <li>
+          <li class={link.title === 'Tags' || link.title === 'RSS' ? 'mobile-hidden' : ''}>
             <p>
               <Link href={link.href} isExternal={link.isExternal}>
                 {link.title}
@@ -81,5 +81,12 @@ const navLinks = [
 
   li {
     list-style: none;
+  }
+
+  @media (max-width: 768px) {
+    .year,
+    .mobile-hidden {
+      display: none;
+    }
   }
 </style>
