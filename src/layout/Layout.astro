@@ -30,6 +30,14 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site).href;
     <meta name="viewport" content="width=device-width" />
     <meta name="generator" content={Astro.generator} />
 
+    <script is:inline>
+      const storedTheme = localStorage.getItem('theme');
+      const theme = storedTheme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      if (theme === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    </script>
+
     <title>{head.title}</title>
     <link rel="icon" href="/v.svg" type="image/x-icon" />
     <meta name="description" content={head.description} />

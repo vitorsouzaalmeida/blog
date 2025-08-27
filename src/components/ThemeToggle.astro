@@ -1,0 +1,96 @@
+---
+---
+
+<button id="theme-toggle" aria-label="Toggle theme">
+  <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2"/>
+    <path d="M12 1v6M12 17v6M23 12h-6M7 12H1M20.07 3.93l-4.24 4.24M8.17 15.83l-4.24 4.24M20.07 20.07l-4.24-4.24M8.17 8.17L3.93 3.93" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  </svg>
+  <svg class="moon-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+</button>
+
+<script>
+  const theme = (() => {
+    if (typeof localStorage !== 'undefined' && localStorage.getItem('theme')) {
+      return localStorage.getItem('theme');
+    }
+    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      return 'dark';
+    }
+    return 'light';
+  })();
+
+  if (theme === 'dark') {
+    document.documentElement.setAttribute('data-theme', 'dark');
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+  }
+
+  if (typeof theme === 'string') {
+    window.localStorage.setItem('theme', theme);
+  }
+
+  const handleToggleClick = () => {
+    const element = document.documentElement;
+    const isDark = element.getAttribute('data-theme') === 'dark';
+    
+    if (isDark) {
+      element.removeAttribute('data-theme');
+      localStorage.setItem('theme', 'light');
+    } else {
+      element.setAttribute('data-theme', 'dark');
+      localStorage.setItem('theme', 'dark');
+    }
+  };
+
+  document.getElementById('theme-toggle')?.addEventListener('click', handleToggleClick);
+
+  document.addEventListener('astro:after-swap', () => {
+    const currentTheme = localStorage.getItem('theme');
+    if (currentTheme === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    }
+    document.getElementById('theme-toggle')?.addEventListener('click', handleToggleClick);
+  });
+</script>
+
+<style>
+  #theme-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-color);
+    transition: opacity 0.3s ease;
+  }
+
+  #theme-toggle:hover {
+    opacity: 0.7;
+  }
+
+  .sun-icon,
+  .moon-icon {
+    transition: opacity 0.3s ease;
+  }
+
+  .sun-icon {
+    display: block;
+  }
+
+  .moon-icon {
+    display: none;
+  }
+
+  [data-theme="dark"] .sun-icon {
+    display: none;
+  }
+
+  [data-theme="dark"] .moon-icon {
+    display: block;
+  }
+</style>

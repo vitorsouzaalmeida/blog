@@ -1,11 +1,11 @@
 ---
-import { getCollection } from "astro:content";
+import { getCollection, type CollectionEntry } from "astro:content";
 
 import Layout from "../layout/Layout.astro";
 import Link from "../components/Link.astro";
 import { SITE } from "../config";
 
-const posts = await getCollection("blog", ({ data }) => !data.draft);
+const posts: CollectionEntry<'blog'>[] = await getCollection("blog", ({ data }) => !data.draft);
 
 const yo = new Date().getFullYear() - new Date(2004, 1, 4).getFullYear();
 ---
@@ -48,8 +48,8 @@ const yo = new Date().getFullYear() - new Date(2004, 1, 4).getFullYear();
         posts
           .sort(
             (a, b) =>
-              Math.floor(b.data.pubDate / 1000) -
-              Math.floor(a.data.pubDate / 1000),
+              Math.floor(b.data.pubDate.getTime() / 1000) -
+              Math.floor(a.data.pubDate.getTime() / 1000)
           )
           .slice(0, 5)
           .map((post) => (

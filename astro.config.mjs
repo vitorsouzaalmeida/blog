@@ -4,7 +4,6 @@ import sitemap from '@astrojs/sitemap';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import fs from 'node:fs/promises';
-import rehypePrettyCode from "rehype-pretty-code";
 
 import vercel from "@astrojs/vercel/static";
 
@@ -28,19 +27,16 @@ export default defineConfig({
   output: "static",
   adapter: vercel(),
   markdown: {
-    syntaxHighlight: false,
+    syntaxHighlight: 'shiki',
+    shikiConfig: {
+      theme: 'github-dark',
+      wrap: true,
+    },
     remarkPlugins: [
       remarkMath,
     ],
     rehypePlugins: [
       rehypeKatex,
-      [
-        rehypePrettyCode,
-        {
-          theme: 'github-light',
-          keepBackground: false,
-        },
-      ],
     ],
   },
   redirects: {

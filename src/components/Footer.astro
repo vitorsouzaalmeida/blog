@@ -1,5 +1,6 @@
 ---
 import Link from "./Link.astro";
+import ThemeToggle from "./ThemeToggle.astro";
 
 const navLinks = [
   {
@@ -31,9 +32,10 @@ const navLinks = [
 ---
 
 <footer>
-  <p>
-    {new Date().getUTCFullYear()}
-  </p>
+  <div class="footer-left">
+    <p>{new Date().getUTCFullYear()}</p>
+    <ThemeToggle />
+  </div>
   <nav>
     <ul>
       {
@@ -53,12 +55,18 @@ const navLinks = [
 
 <style>
   footer {
-    border-top: 1px solid rgba(0, 0, 0, 0.2);
+    border-top: 1px solid var(--footer-border);
     display: flex;
-    align-items: flex-end;
+    align-items: center;
     justify-content: space-between;
     margin-top: var(--spacing-4x);
     padding-top: var(--spacing);
+  }
+
+  .footer-left {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2x);
   }
 
   footer nav ul {
