@@ -150,3 +150,10 @@ a:visited {
 a:hover {
   opacity: 0.8;
 }
+
+u {
+  text-decoration: underline;
+  text-decoration-color: var(--link-color);
+  text-decoration-style: wavy;
+  text-underline-offset: 2px;
+}

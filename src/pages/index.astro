@@ -5,7 +5,10 @@ import Layout from "../layout/Layout.astro";
 import Link from "../components/Link.astro";
 import { SITE } from "../config";
 
-const posts: CollectionEntry<'blog'>[] = await getCollection("blog", ({ data }) => !data.draft);
+const posts: CollectionEntry<"blog">[] = await getCollection(
+  "blog",
+  ({ data }) => !data.draft
+);
 
 const yo = new Date().getFullYear() - new Date(2004, 1, 4).getFullYear();
 ---
@@ -14,28 +17,23 @@ const yo = new Date().getFullYear() - new Date(2004, 1, 4).getFullYear();
   <h1>{SITE.author}</h1>
   <section class="description">
     <p>
-      I'm a {yo}y software engineer. In my free time, I like to code, learn
-      about computer science, and care for my health. Here is a sample of how I
-      spend my time:
+      Living in <u>Brazil</u>, son of a teacher and <u>{yo}y</u>. I'm also a
+      <u>software engineer</u>. In my free time, I like to <u>code</u>, learn
+      something about
+      <u>CS</u> or <u>philosophy</u>, care for my <u>health</u>, hang out with
+      <u>friends and with my girl</u>. Here's a list of some interests:
       <ol type="i" class="desc-ol">
         <li>
           <p>
-            Theory and practice about Software Engineering. Compilers,
-            interpreters, PLs, types, math
+            Theory and practice about software engineering, compilers,
+            interpreters, PLs, types, math, philosophy, theology
           </p>
         </li>
         <li>
           <p>
             Self improvement. Autodidactism, learning how to learn, reading,
-            writing, improving my thought process. I'm also cautious about my
-            health and fitness. I practice regular exercise (gym, running,
-            swimming, and biking), meditation, and a healthy diet.
-          </p>
-        </li>
-        <li>
-          <p>
-            Modeling my environment. I believe that being surrounded by things
-            and people aligned with my goals is the easiest way to achieve them.
+            writing, improving my thought process. Try to practice regular
+            exercises, meditation, and a healthy diet.
           </p>
         </li>
       </ol>
