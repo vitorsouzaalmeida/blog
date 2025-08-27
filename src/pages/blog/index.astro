@@ -1,12 +1,11 @@
 ---
-import { getCollection } from 'astro:content';
+import { getCollection } from "astro:content";
 
 import Layout from "../../layout/Layout.astro";
 import Link from "../../components/Link.astro";
-import NavOptions from '../../components/NavOptions.astro';
-import type { Post } from '../../types';
+import NavOptions from "../../components/NavOptions.astro";
 
-const posts: Post[] = await getCollection('blog');
+const posts = await getCollection("blog");
 ---
 
 <Layout>
@@ -14,23 +13,22 @@ const posts: Post[] = await getCollection('blog');
   <section class="posts">
     <h2>all posts.</h2>
     <ul>
-      {posts
-        .sort(
-          (a, b) =>
-            Math.floor(Number(b.data.pubDate) / 1000) -
-            Math.floor(Number(a.data.pubDate) / 1000)
-        ).map(post => (
-          <li>
-            <p>
-              {post.data.pubDate.toISOString().split('T')[0]}
-            </p>
-            <Link href={`/blog/${post.slug}`}>
-              <p class="post-title">
-                {post.data.title}
-              </p>
-            </Link>
-          </li>
-        ))}
+      {
+        posts
+          .sort(
+            (a, b) =>
+              Math.floor(Number(b.data.pubDate) / 1000) -
+              Math.floor(Number(a.data.pubDate) / 1000)
+          )
+          .map((post) => (
+            <li>
+              <p>{post.data.pubDate.toISOString().split("T")[0]}</p>
+              <Link href={`/blog/${post.slug}`}>
+                <p class="post-title">{post.data.title}</p>
+              </Link>
+            </li>
+          ))
+      }
     </ul>
   </section>
 </Layout>
@@ -44,12 +42,18 @@ const posts: Post[] = await getCollection('blog');
 
   .posts ul li {
     display: flex;
-    justify-content: space-between;
-    column-gap: var(--spacing-8x);
+    align-items: baseline;
+    gap: var(--spacing-4x);
+  }
+
+  .posts ul li p:first-child {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Monaco, Inconsolata,
+      "Roboto Mono", monospace;
+    font-size: var(--font-size-md);
+    flex-shrink: 0;
   }
 
   .posts :global(a) {
     flex: 1;
   }
 </style>
-

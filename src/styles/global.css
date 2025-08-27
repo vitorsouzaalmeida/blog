@@ -1,6 +1,4 @@
 :root {
-  --color-primary: rgba(0,0,0,0);
-
   --font-size-2sm: 0.625rem;
   --font-size-sm: 0.75rem;
   --font-size-md: 1rem;
@@ -13,6 +11,30 @@
   --spacing-2x: 16px;
   --spacing-4x: 32px;
   --spacing-8x: 64px;
+
+  --bg-color: #f5f5f5;
+  --text-color: #000000;
+  --text-secondary: #4a4a4a;
+  --border-color: rgba(0, 0, 0, 0.2);
+  --link-color: #0066cc;
+  --link-visited: #004d99;
+  --code-bg: #ffffff;
+  --code-border: rgba(0, 0, 0, 0.1);
+  --code-text: #24292e;
+  --footer-border: rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] {
+  --bg-color: #0a0a0a;
+  --text-color: #e8e6e3;
+  --text-secondary: #a0a0a0;
+  --border-color: rgba(255, 255, 255, 0.15);
+  --link-color: #7fb7d3;
+  --link-visited: #6a9bb8;
+  --code-bg: #0d1117;
+  --code-border: rgba(255, 255, 255, 0.1);
+  --code-text: #c9d1d9;
+  --footer-border: rgba(255, 255, 255, 0.15);
 }
 
 *,
@@ -26,54 +48,77 @@
 
 html,
 body {
-  font-family: "Times", "Times New Roman", serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
   min-height: 100vh;
   font-size: 100%;
-  line-height: 1.3;
+  line-height: 1.5;
   list-style-type: none;
-  background-color: #f5f5f5;
+  background-color: var(--bg-color);
+  color: var(--text-color);
 }
 
 h1 {
-  font-weight: 900;
+  font-weight: 700;
   font-size: var(--font-size-2xl);
-  font-family: 'Merriweather';
-  line-height: 1.6;
-  letter-spacing: 2px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+  color: var(--text-color);
 }
 
 h2 {
-  font-weight: 700;
+  font-weight: 600;
   font-size: var(--font-size-xl);
-  font-family: 'Merriweather';
-  line-height: 1.6;
-  letter-spacing: 2px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+  color: var(--text-color);
 }
 
 h3 {
-  font-weight: 700;
+  font-weight: 600;
   font-size: var(--font-size-md-m);
-  font-family: 'Merriweather';
-  line-height: 1.6;
-  letter-spacing: 2px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.4;
+  letter-spacing: 0;
+  color: var(--text-color);
 }
 
 p {
   font-size: var(--font-size-md-m);
-  line-height: 1.3;
-  text-align: justify;
-  text-justify: inter-word;
+  line-height: 1.6;
+  text-align: left;
+  color: var(--text-color);
 }
 
 pre {
-  border: 1px solid black;
+  padding: var(--spacing-2x);
+  border-radius: 4px;
+  overflow-x: auto;
+  margin: var(--spacing-2x) 0;
+  border: 1px solid var(--code-border);
+  font-size: var(--font-size-md);
 }
 
-article code {
-  color: #24292e !important;
-  padding: 0 4px;
+pre.shiki {
+  background-color: #0d1117 !important;
+}
 
-  /* text-wrap: wrap; */
+code:not(pre code) {
+  background-color: var(--code-bg);
+  color: var(--code-text);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 0.9em;
+  border: 1px solid var(--code-border);
+}
+
+article code:not(pre code) {
+  padding: 0 4px;
 }
 
 code {
@@ -93,49 +138,15 @@ ul > li {
   margin-left: 0;
 }
 
-[data-rehype-pretty-code-title] {
-  color: var(--color-white);
-  padding: var(--spacing);
-}
-[data-rehype-pretty-code-figure] code {
-  color: var(--color-white);
-  padding: var(--spacing-05x);
-  font-size: var(--font-size-md);
-  overflow-x: auto;
-  background-color: var(--color-white);
-  border: 1px solid var(--color-primary);
-  border-radius: var(--border-radius);
-  margin: var(--spacing) 0;
-  white-space: pre-wrap;
-  text-wrap: nowrap;
+a {
+  color: var(--link-color);
+  transition: color 0.2s ease;
 }
 
-code {
-  counter-reset: line;
+a:visited {
+  color: var(--link-visited);
 }
 
-code > [data-line]::before {
-  counter-increment: line;
-  content: counter(line);
-
-  /* Other styling */
-  display: inline-block;
-  width: 1rem;
-  margin-right: 2rem;
-  text-align: right;
-  color: gray;
-}
-
-code[data-line-numbers-max-digits="2"] > [data-line]::before {
-  width: 2rem;
-}
-
-code[data-line-numbers-max-digits="3"] > [data-line]::before {
-  width: 3rem;
-}
-
-[data-rehype-pretty-code-title] {
-  background-color: #000000;
-  color: #eee;
-  text-align: center;
+a:hover {
+  opacity: 0.8;
 }
