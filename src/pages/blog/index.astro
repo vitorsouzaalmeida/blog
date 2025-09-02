@@ -22,7 +22,9 @@ const posts = await getCollection("blog");
           )
           .map((post) => (
             <li class="post-item">
-              <p class="post-date">{post.data.pubDate.toISOString().split("T")[0]}</p>
+              <p class="post-date">
+                {post.data.pubDate.toISOString().split("T")[0]}
+              </p>
               <Link href={`/blog/${post.slug}`}>
                 <p class="post-title">{post.data.title}</p>
               </Link>
@@ -32,4 +34,3 @@ const posts = await getCollection("blog");
     </ul>
   </section>
 </Layout>
-
