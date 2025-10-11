@@ -8,7 +8,7 @@ export const post = (props: CollectionEntry<"blog">) => {
     <div
       style={{
         display: "flex",
-        backgroundColor: "#fff",
+        backgroundColor: "#ffffff",
         height: "100%",
         width: "100%",
         padding: "6% 8%",
