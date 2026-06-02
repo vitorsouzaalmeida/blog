@@ -5,8 +5,6 @@ import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import fs from "node:fs/promises";
 
-import vercel from "@astrojs/vercel/static";
-
 const BLOG_DIR = "./src/content/blog";
 
 const getBlogRoutesRedirect = async () => {
@@ -24,7 +22,6 @@ export default defineConfig({
   site: "https://vitorsalmeida.com",
   integrations: [mdx(), sitemap()],
   output: "static",
-  adapter: vercel(),
   markdown: {
     syntaxHighlight: "shiki",
     shikiConfig: {
