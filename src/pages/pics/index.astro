@@ -150,7 +150,7 @@ const pics = await Astro.glob("../../pics/*.{jpg,jpeg,png}");
       if (!modal) return;
 
       const modalImg = document.getElementById(
-        "expandedImg"
+        "expandedImg",
       ) as HTMLImageElement & {
         src: string;
       };

@@ -1,34 +1,34 @@
 ---
-import type { CollectionEntry } from 'astro:content';
+import type { CollectionEntry } from "astro:content";
 
-import Link from './Link.astro';
+import Link from "./Link.astro";
 
 interface Props {
-  posts: CollectionEntry<'blog'>[];
+  posts: CollectionEntry<"blog">[];
 }
 
 const { posts } = Astro.props;
 ---
+
 <section class="posts">
   <slot />
   <ul>
-    {posts
-      .sort(
-        (a, b) =>
-          Math.floor(b.data.pubDate / 1000) -
-          Math.floor(a.data.pubDate / 1000)
-      ).map(post => (
-        <li>
-          <p>
-            {post.data.pubDate.toISOString().split('T')[0]}
-          </p>
-          <Link href={`/${post.slug}`}>
-            <p class="post-title">
-              {post.data.title}
-            </p>
-          </Link>
-        </li>
-      ))}
+    {
+      posts
+        .sort(
+          (a, b) =>
+            Math.floor(b.data.pubDate / 1000) -
+            Math.floor(a.data.pubDate / 1000),
+        )
+        .map((post) => (
+          <li>
+            <p>{post.data.pubDate.toISOString().split("T")[0]}</p>
+            <Link href={`/${post.slug}`}>
+              <p class="post-title">{post.data.title}</p>
+            </Link>
+          </li>
+        ))
+    }
   </ul>
 </section>
 

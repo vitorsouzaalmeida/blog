@@ -1,30 +1,30 @@
 ---
-import { getCollection } from 'astro:content';
-import type { CollectionEntry } from 'astro:content';
-import type { GetStaticPathsResult } from 'astro';
+import { getCollection } from "astro:content";
+import type { CollectionEntry } from "astro:content";
+import type { GetStaticPathsResult } from "astro";
 
-import Layout from '../../layout/Layout.astro';
-import Link from '../../components/Link.astro';
-import Posts from '../../components/Posts.astro';
-import GoBackButton from '../../components/NavOptions.astro';
+import Layout from "../../layout/Layout.astro";
+import Link from "../../components/Link.astro";
+import Posts from "../../components/Posts.astro";
+import GoBackButton from "../../components/NavOptions.astro";
 
 interface Props {
-  posts: CollectionEntry<'blog'>[];
+  posts: CollectionEntry<"blog">[];
 }
 
 export const prerender = true;
 export async function getStaticPaths(): Promise<GetStaticPathsResult> {
-  const posts = await getCollection('blog');
+  const posts = await getCollection("blog");
 
   const existentTags = posts.reduce(
-    (tags, post) => new Set([...tags, ...post.data.tags || []]),
-    new Set<string>()
+    (tags, post) => new Set([...tags, ...(post.data.tags || [])]),
+    new Set<string>(),
   );
 
-  const postsPerTag: Record<string, CollectionEntry<'blog'>[]> = {};
+  const postsPerTag: Record<string, CollectionEntry<"blog">[]> = {};
 
-  existentTags.forEach(tag => {
-    const filteredPosts = posts.filter(post => post.data.tags.includes(tag));
+  existentTags.forEach((tag) => {
+    const filteredPosts = posts.filter((post) => post.data.tags.includes(tag));
     postsPerTag[tag] = filteredPosts;
   });
 
@@ -34,7 +34,7 @@ export async function getStaticPaths(): Promise<GetStaticPathsResult> {
     },
     props: {
       posts,
-    }
+    },
   }));
 }
 

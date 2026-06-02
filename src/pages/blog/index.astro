@@ -18,7 +18,7 @@ const posts = await getCollection("blog");
           .sort(
             (a, b) =>
               Math.floor(Number(b.data.pubDate) / 1000) -
-              Math.floor(Number(a.data.pubDate) / 1000)
+              Math.floor(Number(a.data.pubDate) / 1000),
           )
           .map((post) => (
             <li class="post-item">
