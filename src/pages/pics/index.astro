@@ -1,9 +1,11 @@
 ---
 import Layout from "../../layout/Layout.astro";
 import NavOptions from "../../components/NavOptions.astro";
-import { Image } from "astro:assets";
+import { GALLERY } from "../../data/gallery";
+import { cdnImage } from "../../utils/cdn";
 
-const pics = await Astro.glob("../../pics/*.{jpg,jpeg,png}");
+const WIDTHS = [400, 800, 1200, 1600];
+const alt = (file) => file.split(".")[0].replace(/-/g, " ");
 ---
 
 <Layout>
@@ -11,21 +13,19 @@ const pics = await Astro.glob("../../pics/*.{jpg,jpeg,png}");
   <h1>pics.</h1>
   <div class="masonry-grid">
     {
-      pics.map((pic) => (
+      GALLERY.map((file) => (
         <div class="masonry-item">
-          <Image
-            src={pic.default}
-            widths={[400, 800, 1200, 1600]}
-            format="webp"
-            alt={pic.default.src
-              .split("/")
-              .pop()
-              .split(".")[0]
-              .replace(/-/g, " ")}
+          <img
+            src={cdnImage(file, { width: 800 })}
+            srcset={WIDTHS.map(
+              (w) => `${cdnImage(file, { width: w })} ${w}w`,
+            ).join(", ")}
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+            alt={alt(file)}
             loading="lazy"
+            decoding="async"
             class="grid-image"
-            quality={50}
-            decoding={"async"}
+            data-full={cdnImage(file, { width: 1600, quality: 80 })}
           />
         </div>
       ))
@@ -168,7 +168,7 @@ const pics = await Astro.glob("../../pics/*.{jpg,jpeg,png}");
       gridImages.forEach((img) => {
         img.addEventListener("click", () => {
           modal.classList.add("show");
-          modalImg.src = img.src;
+          modalImg.src = img.getAttribute("data-full") || img.src;
           document.body.style.overflow = "hidden";
         });
       });

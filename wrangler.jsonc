@@ -1,0 +1,15 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "blog",
+	"compatibility_date": "2026-06-02",
+	"preview_urls": true,
+	"assets": {
+		"directory": "./dist"
+	},
+	"r2_buckets": [
+		{
+			"bucket_name": "blog-pics",
+			"binding": "blog_pics"
+		}
+	]
+}

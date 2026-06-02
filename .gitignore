@@ -22,3 +22,6 @@ pnpm-debug.log*
 .astro/
 .vercel
 .vscode
+
+.wrangler/
+src/pics/
