@@ -28,6 +28,7 @@ npm run write
 ## Architecture
 
 ### Tech Stack
+
 - **Framework**: Astro with MDX support
 - **Deployment**: Vercel (static site)
 - **Styling**: CSS with Astro scoped styles
@@ -35,6 +36,7 @@ npm run write
 - **Images**: Photos in `src/pics/`, public assets in `public/`
 
 ### Key Directories
+
 - `src/content/blog/`: Blog posts in Markdown
 - `src/pages/`: Astro pages with file-based routing
   - `/blog/[slug]/`: Dynamic blog post routes
@@ -44,18 +46,21 @@ npm run write
 - `src/layout/`: Layout wrapper components
 
 ### Content Management
+
 - Blog posts use frontmatter with `title`, `pubDate`, and `tags`
 - Reading list is managed directly in `src/pages/reads/index.astro` as a typed array
 - RSS feed is auto-generated at `/rss.xml`
 - Blog slugs redirect from root (e.g., `/post-name` → `/blog/post-name`)
 
 ### Special Features
+
 - Math rendering with KaTeX (remark-math + rehype-katex)
 - Code syntax highlighting with rehype-pretty-code (GitHub Light theme)
 - Open Graph images generated for blog posts (`index.png.ts`)
 - Tag-based filtering at `/tags` and `/tag/[tag]`
 
 ## Important Notes
+
 - No linting or testing scripts configured - verify code manually
 - Uses TypeScript with strict config extending Astro's defaults
 - Post creation script (`generateMarkdown.sh`) creates posts with placeholder tags

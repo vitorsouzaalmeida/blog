@@ -24,7 +24,7 @@ npm install
 npm run dev
 ```
 
-If you want to create a new post, run: 
+If you want to create a new post, run:
 
 ```bash
 npm run write

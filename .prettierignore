@@ -1,0 +1,5 @@
+dist
+.astro
+.vercel
+node_modules
+src/content/blog

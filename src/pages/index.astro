@@ -7,7 +7,7 @@ import { SITE } from "../config";
 
 const posts: CollectionEntry<"blog">[] = await getCollection(
   "blog",
-  ({ data }) => !data.draft
+  ({ data }) => !data.draft,
 );
 
 const yo = new Date().getFullYear() - new Date(2004, 1, 4).getFullYear();
@@ -37,9 +37,6 @@ const yo = new Date().getFullYear() - new Date(2004, 1, 4).getFullYear();
           </p>
         </li>
       </ol>
-
-
-
     </p>
   </section>
   <section class="posts">
@@ -50,7 +47,7 @@ const yo = new Date().getFullYear() - new Date(2004, 1, 4).getFullYear();
           .sort(
             (a, b) =>
               Math.floor(b.data.pubDate.getTime() / 1000) -
-              Math.floor(a.data.pubDate.getTime() / 1000)
+              Math.floor(a.data.pubDate.getTime() / 1000),
           )
           .slice(0, 5)
           .map((post) => (
