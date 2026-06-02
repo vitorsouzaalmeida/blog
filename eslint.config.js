@@ -6,5 +6,5 @@ export default [
   ...ts.configs.recommended,
   ...astro.configs.recommended,
   prettier, // disables ESLint rules that conflict with Prettier — keep last
-  { ignores: ["dist/", ".astro/", ".vercel/", "node_modules/"] },
+  { ignores: ["dist/", ".astro/", ".vercel/", "node_modules/", "src/env.d.ts"] },
 ];

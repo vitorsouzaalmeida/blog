@@ -8,5 +8,5 @@ export type Post = {
     pubDate: Date;
     tags: string[];
   };
-  render: Function;
+  render: () => Promise<unknown>;
 };
