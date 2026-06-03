@@ -49,7 +49,7 @@ I copied my zsh config from `vitor` to `work` and cleaned it up, so nothing spec
 
 I installed pnpm directly on the work user, not inside containers. I did consider the
 Podman but for my workflow the friction was not worth it. Currently PNPM and NPM already
-supports a bunch of mitigations against supply-chain attacks: [Mitigating supply chain attacks](https://pnpm.io/supply-chain-security), so take a read.
+support a bunch of mitigations against supply-chain attacks: [Mitigating supply chain attacks](https://pnpm.io/supply-chain-security), so take a read.
 
 ### Mitigations without containers
 
@@ -57,7 +57,7 @@ I allowlist only the packages whose install scripts I actually need,
 through `pnpm.onlyBuiltDependencies` in `package.json`. Most projects need very few, and
 each one becomes a deliberate trust decision instead of an implicit one.
 
-Pretty obvious, but avoid put production keys on the work user. BTW, I thought about using some kind of HTTP Proxy or something similar to avoid having any secrets on the work user at all, but I delayed that for now.
+Pretty obvious, but avoid putting production keys on the work user. BTW, I thought about using some kind of HTTP Proxy or something similar to avoid having any secrets on the work user at all, but I delayed that for now.
 
 About dev server, since I'm running the work user in the same host, I can just access localhost from my main user, so I don't need to share any session or cookie with the work user.
 
@@ -65,4 +65,4 @@ About dev server, since I'm running the work user in the same host, I can just a
 
 I'm using Zed with Remote Development (SSH). Your editor probably has a similar feature. I'm no longer using vscode, but if you do, there's an official extension by Microsoft to deal with it: [Visual Studio Code Remote - SSH](https://code.visualstudio.com/docs/remote/ssh). I created a dedicated Github SSH key for this work user, and I'm no longer using the one in my main user. Regardless AI stuff, I'm a Claude Code user, and I have it installed in the work user as well. Since it doesn't have root access, I'm always running Claude with the bypass permission enabled.
 
-Docker works as expected, but worth mentioning that it is usually a long-running background service called `dockerd` that runs as root. Everything is a proxy to send something to this daemon, that receives the message and does the work, and since the deamon is root, it ends up being a child of a root process. So, you want to avoid adding the work user to the docker group. I will not deep dive into this, but you should probably use docker has a rootless user, and if you need Docker socket, it is possible to spawn a docker compatible socket with podman by running `podman system service` (or just use podman to replace docker, since it is compatible with the same CLI).
+Docker works as expected, but worth mentioning that it is usually a long-running background service called `dockerd` that runs as root. Everything is a proxy to send something to this daemon, that receives the message and does the work, and since the daemon is root, it ends up being a child of a root process. So, you want to avoid adding the work user to the docker group. I will not deep dive into this, but you should probably use docker as a rootless user, and if you need Docker socket, it is possible to spawn a docker compatible socket with podman by running `podman system service` (or just use podman to replace docker, since it is compatible with the same CLI).
