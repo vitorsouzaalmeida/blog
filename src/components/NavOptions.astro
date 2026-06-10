@@ -3,10 +3,6 @@ import Link from "./Link.astro";
 ---
 
 <div>
-  <Link href="#">
-    <span class="nav-link">Go Back</span>
-  </Link>
-  /
   <Link href="/">
     <span class="nav-link">Home</span>
   </Link>
@@ -23,12 +19,3 @@ import Link from "./Link.astro";
     text-decoration: underline;
   }
 </style>
-
-<script>
-  const link = document.querySelector("a");
-
-  const hrefAttribute = document.createAttribute("href");
-  hrefAttribute.value = history.length > 1 ? "javascript:history.back()" : "/";
-
-  link?.attributes.setNamedItem(hrefAttribute);
-</script>
