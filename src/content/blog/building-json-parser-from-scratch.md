@@ -17,7 +17,7 @@ It's worth noting that my repository is open, and you can access it [here](https
 
 A `lexer` will be responsible for converting an expression, whatever it may be, into tokens. These tokens are identifiable elements that have an assigned meaning.
 
-You can divide these tokens in several ways, such as [identifier](https://en.wikipedia.org/wiki/Identifier_(computer_languages)), [keyword](https://en.wikipedia.org/wiki/Reserved_word), [delimiter](https://en.wikipedia.org/wiki/Delimiter), [operator](https://en.wikipedia.org/wiki/Operator_(computer_programming)), [literal](https://en.wikipedia.org/wiki/Literal_(computer_programming)), and [comment](https://en.wikipedia.org/wiki/Comment_(computer_programming)).
+You can divide these tokens in several ways, such as [identifier](<https://en.wikipedia.org/wiki/Identifier_(computer_languages)>), [keyword](https://en.wikipedia.org/wiki/Reserved_word), [delimiter](https://en.wikipedia.org/wiki/Delimiter), [operator](<https://en.wikipedia.org/wiki/Operator_(computer_programming)>), [literal](<https://en.wikipedia.org/wiki/Literal_(computer_programming)>), and [comment](<https://en.wikipedia.org/wiki/Comment_(computer_programming)>).
 
 `{ "type": "LEFT_BRACE", "value": undefined }` is an example of a delimiter. `{ "type": "STRING", "value": "name" }` is an example of a literal.
 
@@ -25,16 +25,16 @@ Example: `{"name":"Vitor","age":18}`
 
 ```javascript
 [
-  { "type": "LEFT_BRACE", "value": undefined },
-  { "type": "STRING", "value": "name" },
-  { "type": "COLON", "value": undefined },
-  { "type": "STRING", "value": "Vitor" },
-  { "type": "COMMA", "value": undefined },
-  { "type": "STRING", "value": "age" },
-  { "type": "COLON", "value": undefined },
-  { "type": "NUMBER", "value": "18" },
-  { "type": "RIGHT_BRACE", "value": undefined }
-]
+  { type: "LEFT_BRACE", value: undefined },
+  { type: "STRING", value: "name" },
+  { type: "COLON", value: undefined },
+  { type: "STRING", value: "Vitor" },
+  { type: "COMMA", value: undefined },
+  { type: "STRING", value: "age" },
+  { type: "COLON", value: undefined },
+  { type: "NUMBER", value: "18" },
+  { type: "RIGHT_BRACE", value: undefined },
+];
 ```
 
 Note that in lexical analysis, you separate your expression into tokens, and each token has its identification.
@@ -545,12 +545,11 @@ export const parser = (tokens: Array<{ type: string; value?: any }>) => {
 ```
 
 ```javascript
-const tokens = lexer('{"name":"Vitor","age":18}')
-console.log('tokens', tokens)
-const json = parser(tokens)
+const tokens = lexer('{"name":"Vitor","age":18}');
+console.log("tokens", tokens);
+const json = parser(tokens);
 
-
-console.log('parser:', JSON.stringify(json, null, 2))
+console.log("parser:", JSON.stringify(json, null, 2));
 ```
 
 Parsing can be fun, but in reality, it's not often written, and you probably don't need to write your own parser. If you are implementing a programming language, for example, there are already various tools that can do this job for you, such as OCamllex, Menhir, or Nearley.
@@ -560,4 +559,3 @@ It's also essential to note that, as this is an introductory article, I didn't c
 If you want to see how the AST of popular languages looks, I recommend the [AST Explorer](https://astexplorer.net/). It supports various languages, and you can view the complete AST and navigate through the nodes. If you want to go further, you can try to copy some logic from an existing parser and implement it in your own, such as calculating an expression according to precedence order, for example: `1 + 2 * 3` (which is 7, not 9).
 
 If you're interested in learning more, I recommend the book "Modern Compiler Implementation in ML." Despite the title being in ML, you can study from it without necessarily writing ML code, as there are other versions written in C, C++, and Java.
-

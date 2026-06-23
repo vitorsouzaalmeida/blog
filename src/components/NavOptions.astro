@@ -1,21 +1,8 @@
 ---
 import Link from "./Link.astro";
+import { SITE } from "../config";
 ---
 
-<div>
-  <Link href="/">
-    <span class="nav-link">Home</span>
-  </Link>
+<div class="font-mono text-[11px] tracking-wider text-muted">
+  <Link href="/">&larr; {SITE.author}</Link>
 </div>
-
-<style>
-  .nav-link {
-    text-decoration: none;
-    font-weight: 500;
-    font-size: 1.1rem;
-  }
-
-  a:hover {
-    text-decoration: underline;
-  }
-</style>

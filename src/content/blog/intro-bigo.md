@@ -28,33 +28,35 @@ Suppose you have a list and need to find a certain element 'x'. This algorithm i
 Another example is when you need to sort a list. This algorithm is called insertion sort.
 
 Sequential search example
+
 ```typescript
 // linear time
 function sequentialSearch(arr: number[], x: number) {
   for (let i = 0; i < arr.length; i++) {
     if (arr[i] === x) {
-      return i
+      return i;
     }
   }
-  return -1
+  return -1;
 }
 ```
 
 Insertion sort example
+
 ```typescript
 // quadratic time
 function insertionSort(arr: number[]) {
   for (let i = 1; i < arr.length; i++) {
-    let currentVal = arr[i]
+    let currentVal = arr[i];
     for (var j = i - 1; j >= 0 && arr[j] > currentVal; j--) {
-      arr[j + 1] = arr[j]
+      arr[j + 1] = arr[j];
     }
-    arr[j + 1] = currentVal
+    arr[j + 1] = currentVal;
 
-    console.log(arr)
+    console.log(arr);
   }
 
-  return arr
+  return arr;
 }
 ```
 
@@ -62,10 +64,9 @@ Both codes work and solve the proposed problem, but one is more performative tha
 
 The advantage of this approach is that, in case of larger arrays, the code will run faster, as the number of iterations is proportional to the size of the array. This makes the time complexity of the code limited by the size of the array, resulting in a less steep growth chart compared to a code with quadratic complexity. In other words, the first code is more performative and efficient in situations where the array can be very large.
 
-
 <img src="/introbigo/bigo.jpg" />
 
-The second code is an example of quadratic complexity Θ(n²). This means that the for loop inside the for loop will be executed a number of times proportional to the square of the size of the array. In other words, if the array has n elements, the inner loop will be executed n * n times, which can be represented by Θ(n²).
+The second code is an example of quadratic complexity Θ(n²). This means that the for loop inside the for loop will be executed a number of times proportional to the square of the size of the array. In other words, if the array has n elements, the inner loop will be executed n \* n times, which can be represented by Θ(n²).
 
 The implications of this complexity are that, in larger arrays, the growth chart will be steeper, resulting in slower and more complex code as the input gets larger.
 
@@ -78,64 +79,66 @@ Another example is when you need to sort a list of numbers in a logarithmic way.
 These algorithms are more performative and efficient than linear or quadratic approaches in situations where the size of the input can be very large.
 
 Binary search example
+
 ```typescript
 // O(log(n))
 function binarySearch(arr: number[], x: number) {
-  let left = 0
-  let right = arr.length - 1
+  let left = 0;
+  let right = arr.length - 1;
 
   while (left <= right) {
-    let mid = Math.floor((left + right) / 2)
+    let mid = Math.floor((left + right) / 2);
     if (arr[mid] === x) {
-      return mid
+      return mid;
     }
     if (arr[mid] < x) {
-      left = mid + 1
+      left = mid + 1;
     } else {
-      right = mid - 1
+      right = mid - 1;
     }
   }
-  return -1
+  return -1;
 }
 ```
 
 Merge sort example
+
 ```typescript
 // O(n log(n))
 function mergeSort(arr: number[]) {
   if (arr.length === 1) {
-    return arr
+    return arr;
   }
 
-  let mid = Math.floor(arr.length / 2)
-  let left = arr.slice(0, mid)
-  let right = arr.slice(mid)
+  let mid = Math.floor(arr.length / 2);
+  let left = arr.slice(0, mid);
+  let right = arr.slice(mid);
 
-  return merge(mergeSort(left), mergeSort(right))
+  return merge(mergeSort(left), mergeSort(right));
 }
 
 function merge(left: number[], right: number[]) {
-  let result = []
-  let i = 0
-  let j = 0
+  let result = [];
+  let i = 0;
+  let j = 0;
 
   while (i < left.length && j < right.length) {
     if (left[i] < right[j]) {
-      result.push(left[i])
-      i++
+      result.push(left[i]);
+      i++;
     } else {
-      result.push(right[j])
-      j++
+      result.push(right[j]);
+      j++;
     }
   }
 
-  return result.concat(left.slice(i)).concat(right.slice(j))
+  return result.concat(left.slice(i)).concat(right.slice(j));
 }
 ```
 
 Both examples are valid, but they have different time complexities. The first one is O(log(n)), which means that the running time increases logarithmically with respect to the size of the input. In other words, in the worst case, if the array has 8 elements, the algorithm will be executed 3 times. For example: log2(8) = 3.
 
-The second example, O(n log(n)), is a notation that indicates that the running time of an algorithm increases proportionally to the product of the size of the input data and the logarithm of that size. This means that, in the worst case, if the array has 8 elements, the algorithm will be executed 24 times. For example: 8 * log2(8) = 24.
+The second example, O(n log(n)), is a notation that indicates that the running time of an algorithm increases proportionally to the product of the size of the input data and the logarithm of that size. This means that, in the worst case, if the array has 8 elements, the algorithm will be executed 24 times. For example: 8 \* log2(8) = 24.
 
 However, it is important to remember that the temporal complexity of an algorithm does not necessarily imply higher or lower speed. It is possible that an algorithm with worse complexity is faster than an algorithm with better complexity, depending on the specific input. However, in general, it is safe to say that the lower the complexity, the faster the algorithm will be, as the input increases.
 

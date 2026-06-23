@@ -2,21 +2,19 @@
 interface Props {
   href: string;
   isExternal?: boolean;
+  class?: string;
 }
 
-const { href, isExternal = false } = Astro.props;
+const { href, isExternal = false, class: className = "" } = Astro.props;
 
 const externalProps = isExternal
   ? { target: "_blank", rel: "noreferrer noopener" }
   : {};
 ---
 
-<a {...externalProps} href={href}><slot /></a>
-<style>
-  a {
-    cursor: pointer;
-    padding: 0;
-    margin: 0;
-    text-decoration: underline;
-  }
-</style>
+<a
+  {...externalProps}
+  href={href}
+  class={`transition-colors duration-150 hover:text-accent ${className}`}
+  ><slot /></a
+>

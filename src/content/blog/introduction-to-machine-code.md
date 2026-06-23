@@ -7,6 +7,7 @@ tags:
 ---
 
 ### What is machine code?
+
 Machine code is computer code.
 
 It consisting of machine language instructions that will be used to control a CPU. And about this, the reason that some programming languages have virtual machines, is to simulate a unique CPU. It helps to run the same code on different platforms without needing to care about specific architectures.
@@ -16,6 +17,7 @@ An opcode (Operation Code) is one byte wide, has an arbitrary but unique value, 
 Opcodes are just a set that specifies the operation (op) to be performed. In other words, an opcode is just an instruction machine code.
 
 Example:
+
 ```asm
 MOV AL, 34h
 ```
@@ -24,9 +26,11 @@ The opcode here is the MOV instruction. The other parts are the operands. In thi
 The "opcode" here, the operation, is the **+** symbol, which means addition. The operands are **3** and **6**.
 
 ### Assembler, disassembler
+
 Of course, no one writes code in machine code — at least not in modern times. However, some tools translate code from Assembly Language to Machine Code.
 
 In assembly language, each instruction on the computer is represented by a mnemonic:
+
 ```asm
 section .data
 	    msg db "Result: "         ; message to display
@@ -73,9 +77,11 @@ Then, the first simple assembler. This was a tiny 31-instruction program (31 wor
 The first bootstrap comes from this basic assembler. The new version could handle more symbols, basic arithmetic in the address, and some macros. This process was repeated. If you want to learn more about this, I recommend reading [EDSAC](https://pt.wikipedia.org/wiki/EDSAC) from Wikipedia and watching [Bootstrapping EDSAC: Initial Orders—Computerphile](https://youtu.be/nc2q4OOK6K8?si=W7rzWRtFQDXfqA2z) from Computerphile.
 
 ### Starting with bytes
+
 Excellent. I hope I have cleared your mind about machine code at this point. We'll write some code in GoLang to write our machine code instructions.
 
 Let's start by defining the bytecode format:
+
 ```go title="code/code.go"
 package code
 
@@ -87,6 +93,7 @@ type Opcode byte
 `Instructions` are a slice of bytes, and an `Opcode` is a byte. Note how it describes our past descriptions. Let's define the first opcode, which would tells the VM (or the processor, if you're compiling directly to machine code and to some especific processor architecture) to push something on the stack - we'll not build a VM at this article.
 
 Backing to the opcode, it wouldn't be called "push", because it won't be solely about pushing things. Let's think about the expression `1 + 2`. There are three instructions, two of which tell the VM/processor to push `1` and `2` to the stack. A first instinct might tell us to implement these by defining a "push" instruction with an integer as its operand, with the idea being that the VM/processor then takes the integer operand and pushes it into the stack. For integers, it would work because I could encode them and put them directly into the bytecode, but for string literals, for example, putting those into the bytecode is also possible since it's just made of bytes. Still, it would also be a lot of bloat and would sooner or later become unwieldy.
+
 - Variable size: A string can be any length, like "a" or "a more extensive text like this one.";
 - You'd have multiple copies of the same string if it appears several times;
 - Bytecode loading performance would be impacted;
@@ -94,7 +101,9 @@ Backing to the opcode, it wouldn't be called "push", because it won't be solely 
 Notice how it is a bad design? Here, I introduce the idea of `constants`.
 
 ### Constants
-In this context, `constants` are short for "constant expressions" and refer to expressions whose value doesn't change. It is `constant` and can be determined at `compile time`. That means we don't need to run the program to know what these expressions evaluate. A compiler can find them in the code and store the value they evaluate. After that, it can *reference* the constants in the instructions it generates instead of embedding the value directly in them. A plain integer does the job fine and can serve as an index into a data structure that holds all constants, often called a constant pool. For example:
+
+In this context, `constants` are short for "constant expressions" and refer to expressions whose value doesn't change. It is `constant` and can be determined at `compile time`. That means we don't need to run the program to know what these expressions evaluate. A compiler can find them in the code and store the value they evaluate. After that, it can _reference_ the constants in the instructions it generates instead of embedding the value directly in them. A plain integer does the job fine and can serve as an index into a data structure that holds all constants, often called a constant pool. For example:
+
 ```asm
 // Instead of having bytecode like:
 PUSH 987654321 // Takes up a lot of space if the number is big
@@ -148,11 +157,14 @@ func Lookup(op byte) (*Definition, error) {
 ```
 
 The lookup helper is not needed, but it's nice for debugging:
+
 ```go
 debug, _ := Lookup(instructions[0])
 fmt.Println(debug)
 ```
+
 Output:
+
 ```shell
 go test ./code -v
 === RUN   TestMake
@@ -161,7 +173,6 @@ go test ./code -v
 PASS
 ok      github.com/vit0rr/introduction-to-machine-code/code     0.179s
 ```
-
 
 The `Definition` for an `Opcode` has two fields: `Name` and `OperandsWidths`. `Name` helps to make an `Opcode` readable and `OperandWidths` contains the number of bytes each operand takes up.
 
@@ -199,6 +210,7 @@ func Make(op Opcode, operands ...int) []byte {
 	return instruction
 }
 ```
+
 This function creates a bytecode instruction for the given `Opcode` and operands. It looks up the `Definition` for the `Opcode` and calculates the instruction's length. Then it creates a byte slice with the correct length and sets the first byte to the `Opcode`. The function then iterates over the operands, encoding them into the instruction according to their width.
 
 And of course we'll write tests about all this.
@@ -236,17 +248,20 @@ func TestMake(t *testing.T) {
 ```
 
 I only pass `OpConstant` and the operand `65534` to the `Make` function. Then expect to get back a `[]byte` golding three bytes. The first has to be the opcode, `OpConstant`, and the other two should be the big-endian encoding of `65534`. And that's also why use `65534` instead of `65535`:
+
 ```text
 65534 in decimal = 1111 1111 1111 1110 in binary
                  = 0xFF 0xFE in hexadecimal (two bytes)
 ```
 
 Big-endian means "most significant byte first". Like reading left-to-right:
+
 - In big-endian: 65534 = [0xFF, 0xFE]
 - In little-endian: 65534 = [0xFE, 0xFF]
-And `65535`, both bytes are the same ([0xFF, 0xFF]) - can't tell the order.
+  And `65535`, both bytes are the same ([0xFF, 0xFF]) - can't tell the order.
 
 The expected output is 3 bytes:
+
 ```text
 [OpConstant, 0xFF, 0xFE]
  ^           ^      ^
@@ -267,7 +282,6 @@ And that's it! First bytecode instruction is done.
 go test ./code
 ok      github.com/vit0rr/introduction-to-machine-code/code     0.537s
 ```
-
 
 ### References:
 

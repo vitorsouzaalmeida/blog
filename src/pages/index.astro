@@ -3,6 +3,7 @@ import { getCollection, type CollectionEntry } from "astro:content";
 
 import Layout from "../layout/Layout.astro";
 import Link from "../components/Link.astro";
+import Posts from "../components/Posts.astro";
 import { SITE } from "../config";
 
 const posts: CollectionEntry<"blog">[] = await getCollection(
@@ -10,77 +11,88 @@ const posts: CollectionEntry<"blog">[] = await getCollection(
   ({ data }) => !data.draft,
 );
 
+const recent = [...posts]
+  .sort((a, b) => Number(b.data.pubDate) - Number(a.data.pubDate))
+  .slice(0, 5);
+
 const yo = new Date().getFullYear() - new Date(2004, 1, 4).getFullYear();
+
+const nav = [
+  { label: "posts", href: "/blog" },
+  { label: "pics", href: "/pics" },
+  { label: "tags", href: "/tags" },
+  { label: "rss", href: "/rss.xml", isExternal: true },
+];
 ---
 
-<Layout>
-  <h1>{SITE.author}</h1>
-  <section class="description">
-    <p>
-      Living in <u>Brazil</u>, son of a teacher and <u>{yo}y</u>. I'm also a
-      <u>software engineer</u>. In my free time, I like to <u>code</u>, learn
-      something about
-      <u>CS</u> or <u>philosophy</u>, care for my <u>health</u>, hang out with
-      <u>friends and with my girl</u>. Here's a list of some interests:
-      <ol type="i" class="desc-ol">
-        <li>
-          <p>
-            Theory and practice about software engineering, compilers,
-            interpreters, PLs, types, math, philosophy, theology
-          </p>
-        </li>
-        <li>
-          <p>
-            Self improvement. Autodidactism, learning how to learn, reading,
-            writing, improving my thought process. Try to practice regular
-            exercises, meditation, and a healthy diet.
-          </p>
-        </li>
-      </ol>
+<Layout maxWidth="760px" footerVariant="centered">
+  <figure class="mb-14">
+    <img
+      src="/claude_monet_le_bateau_atelier.jpg"
+      alt="Claude Monet — Le Bateau-atelier, 1876"
+      width="760"
+      height="440"
+      fetchpriority="high"
+      class="block w-full h-110 object-cover rounded-[3px] border border-rule"
+      style="object-position: center 22%;"
+    />
+    <figcaption
+      class="mt-3 text-right font-mono text-[10px] tracking-[0.04em] text-muted"
+    >
+      Claude Monet &middot; Le Bateau-atelier, 1876
+    </figcaption>
+  </figure>
+
+  <div class="mx-auto max-w-150 text-center">
+    <h1
+      class="font-serif text-[42px] font-medium leading-[1.05] tracking-tight"
+    >
+      {SITE.author}
+    </h1>
+    <p
+      class="mt-3 font-mono text-[11px] tracking-[0.14em] uppercase text-accent"
+    >
+      Thoughts on PL, CS &amp; Math
     </p>
-  </section>
-  <section class="posts">
-    <h2>posts.</h2>
-    <ul>
-      {
-        posts
-          .sort(
-            (a, b) =>
-              Math.floor(b.data.pubDate.getTime() / 1000) -
-              Math.floor(a.data.pubDate.getTime() / 1000),
-          )
-          .slice(0, 5)
-          .map((post) => (
-            <li class="post-item">
-              <p class="post-date">
-                {post.data.pubDate.toISOString().split("T")[0]}
-              </p>
-              <Link href={`/blog/${post.slug}`}>
-                <p class="post-title">{post.data.title}</p>
+
+    <nav class="mt-5">
+      <ul
+        class="flex justify-center gap-6 font-mono text-[11px] tracking-wider text-muted"
+      >
+        {
+          nav.map((item) => (
+            <li>
+              <Link href={item.href} isExternal={item.isExternal}>
+                {item.label}
               </Link>
             </li>
           ))
-      }
-    </ul>
+        }
+      </ul>
+    </nav>
 
-    <Link href="/blog">
-      <p class="see-all-articles">see all posts...</p>
-    </Link>
-  </section>
+    <p class="mt-9 font-serif text-[17px] leading-[1.75]">
+      Living in Brazil, {yo}yo. In my free time, I like to learn about CS,
+      philosophy, read books/mangás, care for my health, and occasionally write
+      something here.
+    </p>
+  </div>
+
+  <div class="mx-auto mt-14 max-w-130">
+    <div class="h-px w-full bg-rule"></div>
+    <p
+      class="mt-12 mb-2 text-center font-mono text-[11px] tracking-[0.18em] uppercase text-muted"
+    >
+      Posts
+    </p>
+    <Posts posts={recent} />
+    <div class="mt-10 text-center">
+      <Link
+        href="/blog"
+        class="font-mono text-[11px] tracking-wider text-accent"
+      >
+        see all posts &rarr;
+      </Link>
+    </div>
+  </div>
 </Layout>
-
-<style>
-  .desc-ol {
-    padding-top: 0.5em;
-    padding-left: 2em;
-  }
-
-  .desc-ol li {
-    margin-bottom: 0.5em;
-  }
-
-  .see-all-articles {
-    margin-top: var(--spacing-2x);
-    text-decoration: underline;
-  }
-</style>

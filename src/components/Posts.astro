@@ -8,44 +8,26 @@ interface Props {
 }
 
 const { posts } = Astro.props;
+
+const sorted = [...posts].sort(
+  (a, b) => Number(b.data.pubDate) - Number(a.data.pubDate),
+);
 ---
 
-<section class="posts">
-  <slot />
-  <ul>
-    {
-      posts
-        .sort(
-          (a, b) =>
-            Math.floor(b.data.pubDate / 1000) -
-            Math.floor(a.data.pubDate / 1000),
-        )
-        .map((post) => (
-          <li>
-            <p>{post.data.pubDate.toISOString().split("T")[0]}</p>
-            <Link href={`/${post.slug}`}>
-              <p class="post-title">{post.data.title}</p>
-            </Link>
-          </li>
-        ))
-    }
-  </ul>
-</section>
-
-<style>
-  .posts ul {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing);
+<ul class="flex flex-col">
+  {
+    sorted.map((post) => (
+      <li class="flex items-baseline gap-6 py-3.25">
+        <time class="shrink-0 w-21.5 font-mono text-[11px] tracking-[0.06em] text-muted">
+          {post.data.pubDate.toISOString().split("T")[0]}
+        </time>
+        <Link
+          href={`/blog/${post.slug}`}
+          class="flex-1 font-serif text-[16px] leading-[1.4]"
+        >
+          {post.data.title}
+        </Link>
+      </li>
+    ))
   }
-
-  .posts ul li {
-    display: flex;
-    justify-content: space-between;
-    column-gap: var(--spacing-8x);
-  }
-
-  .posts :global(a) {
-    flex: 1;
-  }
-</style>
+</ul>

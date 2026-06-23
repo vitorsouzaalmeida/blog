@@ -43,16 +43,10 @@ const { posts } = Astro.props;
 
 <Layout>
   <GoBackButton />
-  <section class="tag-container">
-    <h1>{tag}.</h1>
-    <Posts posts={posts} />
-  </section>
+  <p
+    class="mt-10 mb-6 font-mono text-[11px] tracking-[0.18em] uppercase text-muted"
+  >
+    Tag &middot; {tag}
+  </p>
+  <Posts posts={posts} />
 </Layout>
-
-<style>
-  .tag-container {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-2x);
-  }
-</style>

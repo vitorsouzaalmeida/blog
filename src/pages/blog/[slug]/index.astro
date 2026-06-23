@@ -28,6 +28,14 @@ export async function getStaticPaths() {
 const { post } = Astro.props;
 
 const { Content } = await post.render();
+
+const d = post.data.pubDate;
+const datePart = [
+  d.getUTCFullYear(),
+  String(d.getUTCMonth() + 1).padStart(2, "0"),
+  String(d.getUTCDate()).padStart(2, "0"),
+].join(" · ");
+const tags = post.data.tags ?? [];
 ---
 
 <Layout
@@ -35,48 +43,41 @@ const { Content } = await post.render();
   head={{ title: `${post.data.title} | ${SITE.title}` }}
 >
   <NavOptions />
-  <section>
-    <h1>
+
+  <header class="mt-10">
+    <p class="font-mono text-[11px] tracking-[0.06em] text-muted">
+      {datePart}
+      {
+        tags.length > 0 && (
+          <>
+            {" — "}
+            {tags.map((tag: string, i: number) => (
+              <>
+                {i > 0 && " · "}
+                <Link href={`/tag/${tag}`}>{tag}</Link>
+              </>
+            ))}
+          </>
+        )
+      }
+    </p>
+
+    <h1
+      class="mt-4 font-serif text-[38px] font-medium leading-[1.12] tracking-tight"
+    >
       {post.data.title}
     </h1>
-    <section class="tags">
-      {
-        post.data.tags.map((tag: string) => (
-          <Link href={`/tag/${tag}`}>
-            <p>#{tag}</p>
-          </Link>
-        ))
-      }
-    </section>
-  </section>
-  <article>
+
+    {
+      post.data.subtitle && (
+        <p class="mt-2 font-serif text-[20px] italic text-muted">
+          {post.data.subtitle}
+        </p>
+      )
+    }
+  </header>
+
+  <article class="mt-10">
     <Content />
   </article>
 </Layout>
-
-<style is:global>
-  article {
-    display: flex;
-    flex-direction: column;
-    row-gap: 16px;
-  }
-
-  article ul {
-    padding-right: var(--spacing-2px);
-  }
-
-  article li {
-    list-style-type: disc;
-    /* TODO: it should be spacing-4x, but for some reason, astro is understading it as a string */
-    margin-left: 32px;
-  }
-
-  article code:not(pre code) {
-    padding: 2px 4px;
-  }
-
-  .tags {
-    display: flex;
-    column-gap: var(--spacing);
-  }
-</style>

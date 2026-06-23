@@ -31,11 +31,12 @@ Church numerals let you represent natural numbers under Church encoding:
 Each numeral is a function that takes two arguments, `f` and `x`, and applies `f` _n_ times to `x`. That's how we know what is each number, by couting how many times `f` was applied to `x`.
 
 It is just a [higher-order function](https://en.wikipedia.org/wiki/Higher-order_function), in Javascript it would look like this:
+
 ```typescript
-const zero = f => x => x
-const one = f => x => f(x)
-const two = f => x => f(f(x))
-const three = f => x => f(f(f(x)))
+const zero = (f) => (x) => x;
+const one = (f) => (x) => f(x);
+const two = (f) => (x) => f(f(x));
+const three = (f) => (x) => f(f(f(x)));
 ```
 
 If you're not familiar with the notation, you can read it as giving a function `f`, and a value `x`, apply `f` to `x`.
@@ -92,7 +93,6 @@ With alpha-conversion, we rename bound variables.
 
 We're giving each scope a unique variable name.
 
-
 ```
 AND TRUE FALSE
 // remember TRUE λx.λy.x and FALSE λx.λy.y
@@ -108,6 +108,7 @@ AND TRUE FALSE
 [Try to reduce AND, OR, NOT, IF, etc...](https://en.wikipedia.org/wiki/Lambda_calculus#Logic_and_predicates)
 
 ## Starting the interpreter
+
 Well, I think what we know until now is enough to at least start writing an interpreter.
 
 Let's start defining the AST, which one is just a term:
@@ -119,14 +120,17 @@ type term = Var of string | Abs of string * term | App of term * term
 I don't know if you who is reading this are familiar with OCaml, but it is just the type of a term, `... of type` means that a type carries a value, so the type `Var` comes with a string value. If you wanna understand more about it, take a read about variant constructors and algebraic data type.
 
 `Var of string` in a more practial use:
+
 ```ocaml
 let x = Var "x"
 ```
 
 Same of the others:
+
 ```ocaml
 let abs = Abs ("x", Var "x")
 ```
+
 As you probably have already noticed, this `abs` is the same as `λx.x`. It's possible to write a function to do this prettify for us. This function should receive a term, and transform it to string.
 
 ```ocaml
@@ -136,6 +140,7 @@ let rec to_string ~term =
   | Abs (x, body) -> "λ" ^ x ^ to_string ~term:body
   | App (t1, t2) -> to_string ~term:t1 ^ to_string ~term:t2
 ```
+
 Nothing fancy, just a recursive function calling itself for terms. The `^` thing is how to concat strings in OCaml.
 
 I'm using labeled arguments just because it is a tutorial and I wanna make it easier to read the code. Otherwise I would write it like this:
@@ -160,6 +165,7 @@ let () =
 ```
 
 Output:
+
 ```shell
 > λxxλyy
 ```
@@ -209,6 +215,7 @@ let rec reduce ~term =
 ```
 
 Again, idk how much you who are reding this knows about OCaml, so I want to explain a bit this code.
+
 - `| App (Abs (var, body), arg)`: we want to check for the tradicional case. It matches for expressions like `(λx.x) y`. For this case, we can just call `subst`.
 
 - `| App (lt, rt)`: now we need to handle things like `((λx.x)(λy.y))z`. Since we're implementing a normal-order reduction, we gonna first reduce the `lf` (left term). `<>` in OCaml compares two structures, so we're checking if `lt` and `lt'` differs, if so, we're returning an application, but with the left-term reduced. Otherwise, the left-term is already reduced, so we reduce the right one.
@@ -255,6 +262,7 @@ let () =
 It prints to `y`, which is fine. But let's try to reduce this other expression: `(λx.λy.x)y` (`let term = App (Abs ("x", Abs ("y", Var "x")), Var "y")`). It prints `λy.x`, which is wrong, because we didn't implemented alpha-conversion yet. We need to fix our `subst` `Abs (x, t)` match case.
 
 Let's write a function to check if a variable is free in a given term.
+
 ```ocaml
 let rec free_in ~variable ~term =
   match term with
