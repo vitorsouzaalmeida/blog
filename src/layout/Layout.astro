@@ -5,6 +5,10 @@ import { SITE } from "../config";
 
 export interface Props {
   ogImage?: string;
+  /* Reading-column width. Default 640px; the homepage widens it for the hero. */
+  maxWidth?: string;
+  /* Footer layout: "split" (© left / links right) or "centered" (home). */
+  footerVariant?: "split" | "centered";
   head?: {
     title?: string;
     description?: string;
@@ -12,6 +16,8 @@ export interface Props {
 }
 const {
   ogImage = "og.png",
+  maxWidth = "640px",
+  footerVariant = "split",
   head = {
     title: SITE.title,
     description: SITE.description,
@@ -61,6 +67,13 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site).href;
 
     <link rel="sitemap" href="/sitemap-index.xml" />
 
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..600&family=JetBrains+Mono:wght@400;500&display=swap"
+    />
+
     <!-- Setup KaTeX -->
     <!-- See more here: https://katex.org/docs/browser.html -->
     <link
@@ -81,11 +94,11 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site).href;
       crossorigin="anonymous"
       onload="renderMathInElement(document.body);"></script>
   </head>
-  <body>
-    <main>
+  <body class="bg-paper text-ink">
+    <main style={`max-width:${maxWidth}`}>
       <slot />
     </main>
-    <Footer />
+    <Footer variant={footerVariant} maxWidth={maxWidth} />
   </body>
 </html>
 
@@ -93,22 +106,15 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site).href;
   body {
     display: flex;
     flex-direction: column;
-    margin: 0 auto;
-    width: 80vw;
-    padding-top: var(--spacing-2x);
-    padding-bottom: var(--spacing-2x);
+    min-height: 100vh;
   }
 
   main {
     flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-4x);
-  }
-
-  @media screen and (min-width: 769px) {
-    body {
-      width: 40vw;
-    }
+    width: 100%;
+    margin-inline: auto;
+    padding-inline: 24px;
+    padding-top: 48px;
+    padding-bottom: 48px;
   }
 </style>

@@ -8,12 +8,8 @@ import GoBackButton from "../components/NavOptions.astro";
 const posts = await getCollection("blog", ({ data }) => !data.draft);
 
 const tags = posts.reduce<{ [tag: string]: number }>((acc, post) => {
-  post.data.tags.forEach((tag: string) => {
-    if (acc[tag]) {
-      acc[tag]++;
-    } else {
-      acc[tag] = 1;
-    }
+  (post.data.tags ?? []).forEach((tag: string) => {
+    acc[tag] = (acc[tag] ?? 0) + 1;
   });
   return acc;
 }, {});
@@ -21,24 +17,21 @@ const tags = posts.reduce<{ [tag: string]: number }>((acc, post) => {
 
 <Layout>
   <GoBackButton />
-  <h1>tags.</h1>
-  <section>
-    <ul>
-      {
-        Object.entries(tags).map(([tag, count]) => (
+  <h1
+    class="mt-10 mb-6 font-serif text-[32px] font-medium leading-[1.1] tracking-[-0.02em]"
+  >
+    tags
+  </h1>
+  <ul class="flex flex-wrap gap-x-6 gap-y-3 font-mono text-[13px] text-muted">
+    {
+      Object.entries(tags)
+        .sort((a, b) => b[1] - a[1])
+        .map(([tag, count]) => (
           <li>
-            <Link href={`/tag/${tag}`}>{tag}</Link>({count})
+            <Link href={`/tag/${tag}`}>{tag}</Link>
+            <span class="text-muted/70"> ({count})</span>
           </li>
         ))
-      }
-    </ul>
-  </section>
+    }
+  </ul>
 </Layout>
-
-<style>
-  ul {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-</style>

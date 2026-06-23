@@ -2,35 +2,18 @@
 import { getCollection } from "astro:content";
 
 import Layout from "../../layout/Layout.astro";
-import Link from "../../components/Link.astro";
+import Posts from "../../components/Posts.astro";
 import NavOptions from "../../components/NavOptions.astro";
 
-const posts = await getCollection("blog");
+const posts = await getCollection("blog", ({ data }) => !data.draft);
 ---
 
 <Layout>
   <NavOptions />
-  <section class="posts">
-    <h2>all posts.</h2>
-    <ul>
-      {
-        posts
-          .sort(
-            (a, b) =>
-              Math.floor(Number(b.data.pubDate) / 1000) -
-              Math.floor(Number(a.data.pubDate) / 1000),
-          )
-          .map((post) => (
-            <li class="post-item">
-              <p class="post-date">
-                {post.data.pubDate.toISOString().split("T")[0]}
-              </p>
-              <Link href={`/blog/${post.slug}`}>
-                <p class="post-title">{post.data.title}</p>
-              </Link>
-            </li>
-          ))
-      }
-    </ul>
-  </section>
+  <h1
+    class="mt-10 mb-6 font-serif text-[32px] font-medium leading-[1.1] tracking-[-0.02em]"
+  >
+    all posts
+  </h1>
+  <Posts posts={posts} />
 </Layout>

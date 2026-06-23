@@ -5,12 +5,16 @@ import { GALLERY } from "../../data/gallery";
 import { cdnImage } from "../../utils/cdn";
 
 const WIDTHS = [400, 800, 1200, 1600];
-const alt = (file) => file.split(".")[0].replace(/-/g, " ");
+const alt = (file: string) => file.split(".")[0].replace(/-/g, " ");
 ---
 
-<Layout>
+<Layout maxWidth="1100px">
   <NavOptions />
-  <h1>pics.</h1>
+  <h1
+    class="mt-10 mb-6 font-serif text-[32px] font-medium leading-[1.1] tracking-[-0.02em]"
+  >
+    pics
+  </h1>
   <div class="masonry-grid">
     {
       GALLERY.map((file) => (
@@ -76,7 +80,7 @@ const alt = (file) => file.split(".")[0].replace(/-/g, " ");
       left: 0;
       width: 100%;
       height: 100%;
-      background-color: var(--gray-2);
+      background-color: rgba(0, 0, 0, 0.92);
       padding: 2rem;
       box-sizing: border-box;
       opacity: 0;
@@ -100,7 +104,7 @@ const alt = (file) => file.split(".")[0].replace(/-/g, " ");
       position: absolute;
       right: 2rem;
       top: 1rem;
-      color: var(--gray-a3);
+      color: #fff;
       font-size: 2rem;
       font-weight: bold;
       cursor: pointer;
