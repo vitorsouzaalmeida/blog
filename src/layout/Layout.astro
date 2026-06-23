@@ -15,7 +15,7 @@ export interface Props {
   };
 }
 const {
-  ogImage = "og.png",
+  ogImage = "claude_monet_le_bateau_atelier.jpg",
   maxWidth = "640px",
   footerVariant = "split",
   head = {
@@ -49,10 +49,9 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site).href;
     </script>
 
     <title>{head.title}</title>
-    <link rel="icon" href="/v.svg" type="image/x-icon" />
+    <!-- <link rel="icon" href="/v.svg" type="image/x-icon" /> -->
     <meta name="description" content={head.description} />
     <meta name="author" content={SITE.author} />
-    <meta property="og:image" content={ogURL} />
 
     <meta property="og:title" content={head.title} />
     <meta property="og:description" content={head.description} />
