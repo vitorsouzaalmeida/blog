@@ -1,0 +1,64 @@
+---
+import type { CollectionEntry } from "astro:content";
+import type { GetStaticPathsResult } from "astro";
+
+import Layout from "../../layout/Layout.astro";
+import Link from "../../components/Link.astro";
+import GoBackButton from "../../components/NavOptions.astro";
+import { THREADS, getThreadParts, type Thread } from "../../threads";
+
+interface Props {
+  thread: Thread;
+  parts: CollectionEntry<"blog">[];
+}
+
+export const prerender = true;
+export async function getStaticPaths(): Promise<GetStaticPathsResult> {
+  return Promise.all(
+    THREADS.map(async (thread) => ({
+      params: { slug: thread.id },
+      props: { thread, parts: await getThreadParts(thread.id) },
+    })),
+  );
+}
+
+const { thread, parts } = Astro.props;
+---
+
+<Layout>
+  <GoBackButton />
+  <p class="mt-10 font-mono text-[11px] tracking-[0.18em] uppercase text-muted">
+    Thread
+  </p>
+  <h1
+    class="mt-3 font-serif text-[32px] font-medium leading-[1.1] tracking-[-0.02em]"
+  >
+    {thread.title}
+  </h1>
+  <p class="mt-3 font-serif text-[17px] leading-[1.6] text-muted">
+    {thread.description}
+  </p>
+
+  <ol class="mt-8 flex flex-col">
+    {
+      parts.map((post, i) => (
+        <li class="flex items-baseline gap-6 py-3.25">
+          <span class="shrink-0 w-21.5 font-mono text-[11px] tracking-[0.06em] text-muted">
+            part {i + 1}
+          </span>
+          <div class="flex-1">
+            <Link
+              href={`/blog/${post.slug}`}
+              class="font-serif text-[16px] leading-[1.4]"
+            >
+              {post.data.title}
+            </Link>
+            <span class="mt-1 block font-mono text-[10px] tracking-[0.06em] text-muted">
+              {post.data.pubDate.toISOString().split("T")[0]}
+            </span>
+          </div>
+        </li>
+      ))
+    }
+  </ol>
+</Layout>

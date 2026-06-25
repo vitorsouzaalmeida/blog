@@ -8,6 +8,8 @@ const blogCollection = defineCollection({
     pubDate: z.date(),
     tags: z.array(z.string()).optional(),
     draft: z.boolean().optional(),
+    thread: z.string().optional(),
+    threadOrder: z.number().optional(),
   }),
 });
 

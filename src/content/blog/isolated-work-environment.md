@@ -3,6 +3,7 @@ title: How I isolated my work environment
 pubDate: 2026-06-03
 tags:
   - code
+thread: isolated-env
 ---
 
 ### A separate Linux user
