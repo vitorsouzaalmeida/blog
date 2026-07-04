@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a personal portfolio/blog website built with Astro, deployed on Vercel. The site features blog posts, a photo gallery, and a reading list.
+This is a personal portfolio/blog website built with Astro, deployed on Vercel. The site features blog posts and a reading list.
 
 ## Development Commands
 
@@ -33,7 +33,7 @@ npm run write
 - **Deployment**: Vercel (static site)
 - **Styling**: CSS with Astro scoped styles
 - **Content**: Markdown/MDX files in `src/content/blog/`
-- **Images**: Photos in `src/pics/`, public assets in `public/`
+- **Images**: Public assets in `public/`
 
 ### Key Directories
 
@@ -41,7 +41,6 @@ npm run write
 - `src/pages/`: Astro pages with file-based routing
   - `/blog/[slug]/`: Dynamic blog post routes
   - `/reads/`: Reading list with hardcoded entries
-  - `/pics/`: Photo gallery
 - `src/components/`: Reusable Astro components
 - `src/layout/`: Layout wrapper components
 

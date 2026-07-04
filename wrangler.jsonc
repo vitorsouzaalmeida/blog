@@ -6,10 +6,4 @@
   "assets": {
     "directory": "./dist",
   },
-  "r2_buckets": [
-    {
-      "bucket_name": "blog-pics",
-      "binding": "blog_pics",
-    },
-  ],
 }
