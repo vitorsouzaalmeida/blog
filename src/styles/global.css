@@ -165,6 +165,16 @@
   }
 }
 
+@media (min-width: 768px) {
+  article {
+    font-size: 19px;
+  }
+
+  article > p:first-of-type {
+    font-size: 20px;
+  }
+}
+
 [data-theme="dark"] .astro-code,
 [data-theme="dark"] .astro-code span {
   color: var(--shiki-dark) !important;
