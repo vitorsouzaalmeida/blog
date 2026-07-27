@@ -1,0 +1,66 @@
+name: deploy
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+
+permissions:
+    contents: read
+    pull-requests: write
+
+concurrency:
+    group: deploy-${{ github.ref }}
+    cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+    CARGO_TERM_COLOR: always
+
+jobs:
+    deploy:
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+        steps:
+            - uses: actions/checkout@v5
+            - uses: Swatinem/rust-cache@v2
+            - run: cargo fmt --check
+            - run: cargo test --release
+            - run: cargo run --release -- build
+            - name: Deploy
+              if: github.event_name == 'push'
+              uses: cloudflare/wrangler-action@v3
+              with:
+                  apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+                  accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+                  wranglerVersion: "4"
+                  command: deploy
+
+            - name: Upload preview
+              id: preview
+              if: >-
+                  github.event_name == 'pull_request' &&
+                  github.event.pull_request.head.repo.full_name == github.repository
+              uses: cloudflare/wrangler-action@v3
+              with:
+                  apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+                  accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+                  wranglerVersion: "4"
+                  command: versions upload --preview-alias pr-${{ github.event.number }}
+
+            - name: Comment preview URL
+              if: steps.preview.outcome == 'success'
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  PR: ${{ github.event.number }}
+                  DEPLOYMENT_URL: ${{ steps.preview.outputs.deployment-url }}
+                  COMMAND_OUTPUT: ${{ steps.preview.outputs.command-output }}
+              run: |
+                  # The alias URL is the one specific to this PR; deployment-url is a fallback
+                  # because the action derives it from `deploy` output, not `versions upload`.
+                  url=$(printf '%s' "$COMMAND_OUTPUT" \
+                    | grep -oE 'https://[a-z0-9.-]+\.workers\.dev' \
+                    | grep -m1 "pr-$PR-" || true)
+                  [ -n "$url" ] || url="$DEPLOYMENT_URL"
+                  [ -n "$url" ] || { echo "no preview URL in wrangler output"; exit 1; }
+                  gh pr comment "$PR" --edit-last --create-if-none \
+                    --body "Preview: $url (commit ${GITHUB_SHA:0:7})"
