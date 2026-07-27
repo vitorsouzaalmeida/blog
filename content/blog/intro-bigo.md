@@ -64,7 +64,7 @@ Both codes work and solve the proposed problem, but one is more performative tha
 
 The advantage of this approach is that, in case of larger arrays, the code will run faster, as the number of iterations is proportional to the size of the array. This makes the time complexity of the code limited by the size of the array, resulting in a less steep growth chart compared to a code with quadratic complexity. In other words, the first code is more performative and efficient in situations where the array can be very large.
 
-<img src="/introbigo/bigo.jpg" />
+<img src="/introbigo/bigo.jpg" width="1200" height="835" loading="lazy" decoding="async" alt="Growth chart comparing linear and quadratic time complexity" />
 
 The second code is an example of quadratic complexity Θ(n²). This means that the for loop inside the for loop will be executed a number of times proportional to the square of the size of the array. In other words, if the array has n elements, the inner loop will be executed n \* n times, which can be represented by Θ(n²).
 

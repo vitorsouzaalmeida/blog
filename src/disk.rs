@@ -2,6 +2,7 @@ use std::fs;
 use std::io::{Error, ErrorKind, Result};
 use std::path::{Path, PathBuf};
 
+use crate::assets;
 use crate::content::{self, Post};
 use crate::highlight::Highlighter;
 use crate::markdown;
@@ -16,6 +17,8 @@ pub struct Asset {
 pub struct Content {
     pub posts: Vec<Post>,
     pub assets: Vec<Asset>,
+    pub css: String,
+    pub script: String,
 }
 
 fn invalid(path: &Path, msg: impl std::fmt::Display) -> Error {
@@ -46,6 +49,22 @@ fn load_posts(dir: &Path, hl: &Highlighter) -> Result<Vec<Post>> {
     Ok(markdown::render_posts(posts, hl))
 }
 
+fn concat(dir: &Path, names: &[&str], sep: &str) -> Result<String> {
+    let parts = names
+        .iter()
+        .map(|name| {
+            let path = dir.join(name);
+            fs::read_to_string(&path).map_err(|e| invalid(&path, e))
+        })
+        .collect::<Result<Vec<String>>>()?;
+    Ok(parts.join(sep))
+}
+
+fn is_inlined(rel: &Path) -> bool {
+    let rel = rel.to_string_lossy().replace('\\', "/");
+    assets::STYLESHEETS.contains(&rel.as_str()) || assets::SCRIPTS.contains(&rel.as_str())
+}
+
 fn list_assets(dir: &Path) -> Result<Vec<Asset>> {
     fn walk(dir: &Path, prefix: &Path, into: &mut Vec<Asset>) -> Result<()> {
         let mut entries: Vec<PathBuf> = fs::read_dir(dir)?
@@ -60,7 +79,7 @@ fn list_assets(dir: &Path) -> Result<Vec<Asset>> {
             let rel = prefix.join(name);
             if path.is_dir() {
                 walk(&path, &rel, into)?;
-            } else {
+            } else if !is_inlined(&rel) {
                 into.push(Asset { rel, src: path });
             }
         }
@@ -75,9 +94,12 @@ fn list_assets(dir: &Path) -> Result<Vec<Asset>> {
 }
 
 pub fn load(root: &Path, hl: &Highlighter) -> Result<Content> {
+    let static_dir = root.join("static");
     Ok(Content {
         posts: load_posts(&root.join("content/blog"), hl)?,
-        assets: list_assets(&root.join("static"))?,
+        assets: list_assets(&static_dir)?,
+        css: concat(&static_dir, &assets::STYLESHEETS, "\n")?,
+        script: concat(&static_dir, &assets::SCRIPTS, ";\n")?,
     })
 }
 

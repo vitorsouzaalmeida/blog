@@ -50,7 +50,7 @@ Qed.
 
 Coq have some macros that abstracts some proofs. We can see this reducing using `simpl.`:
 
-<img src="/natinfinity/simpl.gif" />
+<video src="/natinfinity/simpl.mp4" width="600" height="434" autoplay loop muted playsinline preload="metadata" aria-label="Coq reducing the proof with the simpl tactic"></video>
 
 Coq gives us some theorems related to natural numbers ordering, like `le_n_S` and `le_n`. These theorems can be used to reduce steps of our proof, replacing them with the applied theorem. In math, the `le` it is $\leq$, less than or equal.
 
@@ -62,7 +62,7 @@ The `apply le_n_S.` definition is `le_n_S : forall n m : nat, n <= m -> S n <= S
 
 You can also see it on CoqIDE:
 
-<img src="/natinfinity/le.gif" />
+<video src="/natinfinity/le.mp4" width="600" height="412" autoplay loop muted playsinline preload="metadata" aria-label="The same proof stepped through in CoqIDE"></video>
 
 ## Conclusion
 
