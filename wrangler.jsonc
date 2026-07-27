@@ -1,5 +1,4 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
   "name": "blog",
   "compatibility_date": "2026-06-02",
   "preview_urls": true,

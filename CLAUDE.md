@@ -1,66 +1,82 @@
-# CLAUDE.md
-
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-## Project Overview
-
-This is a personal portfolio/blog website built with Astro, deployed on Vercel. The site features blog posts and a reading list.
-
-## Development Commands
-
 ```bash
-# Install dependencies
-npm install
-
-# Start development server
-npm run dev
-
-# Build for production
-npm run build
-
-# Preview production build
-npm run preview
-
-# Create a new blog post (interactive script)
-npm run write
+cargo run --release -- build   # build the project and output it to /dist
+cargo run -- dev               # build + serve dist/ with live-reload (default port 8788; PORT to override)
+cargo test                     # unit tests (see Tests below — the suite is deliberately small)
+cargo fmt                      # format
+./generateMarkdown.sh "Title"  # scaffold a new post in content/blog/
 ```
 
 ## Architecture
 
-### Tech Stack
+The crate is a library (`src/lib.rs`) with a thin `ssg` binary on top. A build
+is two steps:
 
-- **Framework**: Astro with MDX support
-- **Deployment**: Vercel (static site)
-- **Styling**: CSS with Astro scoped styles
-- **Content**: Markdown/MDX files in `src/content/blog/`
-- **Images**: Public assets in `public/`
+```
+disk::load  ->  build() renders each page and writes it
+   (I/O)        (pure renderers + disk::write / disk::copy)
+```
 
-### Key Directories
+`build()` walks posts, tags, threads, OG images and static assets in that order,
+writing each file as it is rendered. There is no intermediate description of
+`dist/`.
 
-- `src/content/blog/`: Blog posts in Markdown
-- `src/pages/`: Astro pages with file-based routing
-  - `/blog/[slug]/`: Dynamic blog post routes
-  - `/reads/`: Reading list with hardcoded entries
-- `src/components/`: Reusable Astro components
-- `src/layout/`: Layout wrapper components
+**Only `disk.rs`, `dev.rs` and `main.rs` may name `std::fs`, `std::env` or
+`SystemTime::now`.** Every renderer is a function of its arguments, which keeps
+the output byte-for-byte reproducible. `Ctx { year, live_reload, og_images }`
+carries the values that used to be read from a `BLOG_DEV` env var and the
+system clock.
 
-### Content Management
+## Modules (`src/`)
 
-- Blog posts use frontmatter with `title`, `pubDate`, and `tags`
-- Reading list is managed directly in `src/pages/reads/index.astro` as a typed array
-- RSS feed is auto-generated at `/rss.xml`
-- Blog slugs redirect from root (e.g., `/post-name` → `/blog/post-name`)
+- `lib.rs` — module list + `build(root, dist, ctx)`: renders and writes all of
+  `dist/`.
+- `config.rs` — site constants and `Ctx`.
+- `clock.rs` — `current_year()`, over a hand-rolled Gregorian year walk.
+- `content.rs` — pure parser: frontmatter + dates (no yaml/date crate).
+  `Post`, `Date`, `tag_counts`. Returns `Err` on a malformed post rather than
+  publishing a blank page.
+- `markdown.rs` — `pulldown-cmark` -> HTML. Math (`$…$`, `$$…$$`) -> MathML via
+  `latex2mathml`; fenced code -> `highlight.rs`. Raw HTML passes through.
+- `highlight.rs` — `syntect` (pure-Rust regex) class-based highlighting +
+  `highlight_css()` generating light + `[data-theme="dark"]` rules.
+- `render.rs` — HTML as `String` builders (layout, components, pages). Same class
+  names as `static/styles.css`. `tag_path`/`tag_href` are the _only_ places a tag
+  becomes a URL segment — the link, the htmx endpoint, the canonical URL, the
+  sitemap entry and the output directory must all agree.
+- `og.rs` — OG PNGs drawn with `image` + `ab_glyph` (fonts embedded via
+  `include_bytes!` from `assets/og-fonts/`). 1200×630. `Fonts` is built once per
+  build. Note: Merriweather has no glyph for `β`/`α`, so those render as notdef
+  boxes on the card.
+- `threads.rs` — post "threads" (series); pure functions over `&[Post]`.
+  `THREADS` is a static slice.
+- `disk.rs` — the only filesystem module: `load` (posts + sorted assets),
+  `clean`, `write`, `copy`. `write`/`copy` create parent directories.
+- `dev.rs` — std-only dev server: static file serving (dir index, extensionless
+  `.html`, trailing-slash 301), SSE `/__livereload`, mtime-poll watcher.
+  `resolve()` mirrors Cloudflare's asset resolution.
 
-### Special Features
+There is no `draft` concept: every post in `content/blog/` is published.
 
-- Math rendering with KaTeX (remark-math + rehype-katex)
-- Code syntax highlighting with rehype-pretty-code (GitHub Light theme)
-- Open Graph images generated for blog posts (`index.png.ts`)
-- Tag-based filtering at `/tags` and `/tag/[tag]`
+## Tests
 
-## Important Notes
+This is a personal blog with one consumer, so the bar for a test is high. The
+suite is intentionally ~8 tests, all beside the code they cover:
 
-- No linting or testing scripts configured - verify code manually
-- Uses TypeScript with strict config extending Astro's defaults
-- Post creation script (`generateMarkdown.sh`) creates posts with placeholder tags
-- Site is configured for simplicity and speed - avoid adding complex features or heavy dependencies
+- `content.rs` — date rejection, frontmatter parsing, tag counting
+- `feeds.rs` — URL absolutization and CDATA splitting
+- `render.rs` — HTML escaping, URL encoding, `tag_href`/`tag_path` agreement
+
+That list is the whole policy: test **hand-written string surgery with no
+library behind it**, where a silent bug ships a broken feed or a 404 link.
+
+Do **not** add tests that re-test `pulldown-cmark`, `syntect`, `image`,
+`latex2mathml` or the standard library, that assert on produced site output, or
+that require production code to grow accessors, wrappers or fixtures to be
+reachable. If verifying a change means looking at the built site, build it and
+look at it — do not encode it as an assertion.
+
+## Code
+
+- Functional style: pure, side-effect free, no mutable state
+- Prefer borrowing over ownership
+- Avoid unnecessary allocations; prefer `&str` over `String`
