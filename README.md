@@ -1,5 +1,17 @@
-# vitorsalmeida
+Static site built with HTMX and Rust.
 
-Welcome to [vitorsalmeida.com](https://vitorsalmeida.com)! This is my personal website, where I share my thoughts and experiences about software development and sometimes other topics.
+I'm using Rust as a static site generator to turns Markdown into HTML, and HTMX to add interactivity. This project does not use Node, or a bundler, or a framework on purpose.
 
-It is a fork from [Noghartt](https://github.com/noghartt), thanks 🫶🏼
+## Development
+
+```bash
+cargo run --release -- build
+cargo run -- dev
+cargo test
+cargo fmt
+./generateMarkdown.sh "Title"
+```
+
+## License
+
+Code is under [LICENSE](LICENSE); the posts in `content/` are under [LICENSE-posts](LICENSE-posts).

@@ -1,15 +1,8 @@
 # build output
 dist/
 
-# dependencies
-node_modules/
-
-# logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-
+# rust
+/target/
 
 # environment variables
 .env
@@ -18,10 +11,6 @@ pnpm-debug.log*
 # macOS-specific files
 .DS_Store
 
-# ignore .astro
-.astro/
-.vercel
+# editor / tooling caches
 .vscode
-
 .wrangler/
-src/pics/

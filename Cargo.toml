@@ -1,0 +1,22 @@
+[package]
+name = "blog"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "blog"
+path = "src/lib.rs"
+
+[[bin]]
+name = "ssg"
+path = "src/main.rs"
+
+[dependencies]
+pulldown-cmark = "0.13"
+latex2mathml = "0.2"
+syntect = { version = "5", default-features = false, features = ["default-fancy"] }
+image = { version = "0.25", default-features = false, features = ["png"] }
+ab_glyph = "0.2"
+
+[profile.release]
+opt-level = 2
