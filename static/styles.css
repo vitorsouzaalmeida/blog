@@ -562,7 +562,11 @@ article blockquote {
   font-style: italic;
 }
 
-article img {
+/* Every <img>/<video> in a post carries width/height attributes, so the
+   intrinsic ratio is known before the bytes arrive and nothing shifts. These
+   two rules scale that box down on narrow screens without losing the ratio. */
+article img,
+article video {
   max-width: 100%;
   height: auto;
   border-radius: 3px;

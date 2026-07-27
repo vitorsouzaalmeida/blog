@@ -57,6 +57,7 @@ pub fn content_type(path: &Path) -> &'static str {
         "jpg" | "jpeg" => "image/jpeg",
         "gif" => "image/gif",
         "webp" => "image/webp",
+        "mp4" => "video/mp4",
         "woff2" => "font/woff2",
         "woff" => "font/woff",
         "ttf" => "font/ttf",

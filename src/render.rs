@@ -1,6 +1,7 @@
 use std::cmp::Reverse;
 use std::collections::HashMap;
 
+use crate::assets::{Page, PRELOAD_FONTS};
 use crate::config::{self, Ctx};
 use crate::content::Post;
 use crate::threads::{Placement, Thread, ThreadNav};
@@ -182,6 +183,7 @@ pub struct Layout {
     pub max_width: String,
     pub footer: Footer,
     pub body: String,
+    pub highlighted: bool,
 }
 
 impl Default for Layout {
@@ -194,11 +196,12 @@ impl Default for Layout {
             max_width: "640px".to_string(),
             footer: Footer::Split,
             body: String::new(),
+            highlighted: false,
         }
     }
 }
 
-pub fn layout(ctx: Ctx, o: Layout) -> String {
+pub fn layout(ctx: Ctx, page: Page, o: Layout) -> String {
     let canonical_e = esc(&format!("{}{}", config::WEBSITE, o.path));
     let og_url_e = esc(&format!("{}{}", config::WEBSITE, o.og_image));
     let title = esc(&o.title);
@@ -210,12 +213,29 @@ pub fn layout(ctx: Ctx, o: Layout) -> String {
     let body = o.body;
     let max_width = o.max_width;
 
+    let preloads: String = PRELOAD_FONTS
+        .iter()
+        .map(|href| {
+            format!(
+                "\n    <link rel=\"preload\" href=\"{href}\" as=\"font\" type=\"font/woff2\" crossorigin />"
+            )
+        })
+        .collect();
+    let css = page.css;
+    let highlight = if o.highlighted {
+        format!("\n    <style>{}</style>", page.highlight)
+    } else {
+        String::new()
+    };
+    let script = page.script;
+
     format!(
         r#"<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    {preloads}
     <script>{THEME_SCRIPT}</script>
 
     <title>{title}</title>
@@ -240,14 +260,9 @@ pub fn layout(ctx: Ctx, o: Layout) -> String {
     <link rel="alternate" type="application/rss+xml" title="{site_title}" href="/rss.xml" />
     <link rel="sitemap" href="/sitemap.xml" />
 
-    <link rel="stylesheet" href="/fonts/fonts.css" />
-    <link rel="stylesheet" href="/styles.css" />
-    <link rel="stylesheet" href="/highlight.css" />
+    <style>{css}</style>{highlight}
 
-    <script defer src="/vendor/htmx.min.js"></script>
-    <script defer src="/vendor/head-support.min.js"></script>
-    <script defer src="/vendor/preload.min.js"></script>
-    <script defer src="/vendor/idiomorph-ext.min.js"></script>
+    <script defer src="{script}"></script>
   </head>
   <body hx-boost="true" hx-ext="head-support,preload,morph" hx-swap="morph:innerHTML" preload="mouseover">
     <main style="max-width:{max_width}">
@@ -260,7 +275,7 @@ pub fn layout(ctx: Ctx, o: Layout) -> String {
     )
 }
 
-pub fn home_page(ctx: Ctx, posts: &[Post], tm: &HashMap<&str, Placement>) -> String {
+pub fn home_page(ctx: Ctx, page: Page, posts: &[Post], tm: &HashMap<&str, Placement>) -> String {
     let mut recent: Vec<&Post> = posts.iter().collect();
     recent.sort_by_key(|p| Reverse(p.pub_date));
     recent.truncate(5);
@@ -294,6 +309,7 @@ pub fn home_page(ctx: Ctx, posts: &[Post], tm: &HashMap<&str, Placement>) -> Str
 
     layout(
         ctx,
+        page,
         Layout {
             title: config::TITLE.to_string(),
             path: "/".to_string(),
@@ -305,7 +321,12 @@ pub fn home_page(ctx: Ctx, posts: &[Post], tm: &HashMap<&str, Placement>) -> Str
     )
 }
 
-pub fn blog_index_page(ctx: Ctx, posts: &[Post], tm: &HashMap<&str, Placement>) -> String {
+pub fn blog_index_page(
+    ctx: Ctx,
+    page: Page,
+    posts: &[Post],
+    tm: &HashMap<&str, Placement>,
+) -> String {
     let all: Vec<&Post> = posts.iter().collect();
     let body = format!(
         "\n    {}\n    <h1 class=\"page-title\">all posts</h1>\n    {}",
@@ -314,6 +335,7 @@ pub fn blog_index_page(ctx: Ctx, posts: &[Post], tm: &HashMap<&str, Placement>) 
     );
     layout(
         ctx,
+        page,
         Layout {
             title: format!("posts | {}", config::TITLE),
             path: "/blog".to_string(),
@@ -323,7 +345,7 @@ pub fn blog_index_page(ctx: Ctx, posts: &[Post], tm: &HashMap<&str, Placement>) 
     )
 }
 
-pub fn post_page(ctx: Ctx, post: &Post, nav: Option<&ThreadNav>) -> String {
+pub fn post_page(ctx: Ctx, page: Page, post: &Post, nav: Option<&ThreadNav>) -> String {
     let date_part = post.pub_date.dotted();
     let tags_html = if post.tags.is_empty() {
         String::new()
@@ -392,18 +414,20 @@ pub fn post_page(ctx: Ctx, post: &Post, nav: Option<&ThreadNav>) -> String {
 
     layout(
         ctx,
+        page,
         Layout {
             title: format!("{} | {}", post.title, config::TITLE),
             description: post.summary().unwrap_or(config::DESCRIPTION).to_string(),
             og_image: format!("/blog/{}/og.png", post.slug),
             path: format!("/blog/{}", post.slug),
+            highlighted: post.html.contains("<pre class=\"hl\">"),
             body,
             ..Default::default()
         },
     )
 }
 
-pub fn tags_page(ctx: Ctx, tag_counts: &[(&str, usize)]) -> String {
+pub fn tags_page(ctx: Ctx, page: Page, tag_counts: &[(&str, usize)]) -> String {
     let items: String = tag_counts
         .iter()
         .map(|(tag, count)| {
@@ -421,6 +445,7 @@ pub fn tags_page(ctx: Ctx, tag_counts: &[(&str, usize)]) -> String {
     );
     layout(
         ctx,
+        page,
         Layout {
             title: format!("tags | {}", config::TITLE),
             path: "/tags".to_string(),
@@ -430,7 +455,13 @@ pub fn tags_page(ctx: Ctx, tag_counts: &[(&str, usize)]) -> String {
     )
 }
 
-pub fn tag_page(ctx: Ctx, tag: &str, posts: &[&Post], tm: &HashMap<&str, Placement>) -> String {
+pub fn tag_page(
+    ctx: Ctx,
+    page: Page,
+    tag: &str,
+    posts: &[&Post],
+    tm: &HashMap<&str, Placement>,
+) -> String {
     let body = format!(
         "\n    {}\n    <p class=\"section-label section-label-left\">Tag &middot; {}</p>\n    <div id=\"tag-results\" class=\"tag-results\">{}</div>",
         nav_back(),
@@ -439,6 +470,7 @@ pub fn tag_page(ctx: Ctx, tag: &str, posts: &[&Post], tm: &HashMap<&str, Placeme
     );
     layout(
         ctx,
+        page,
         Layout {
             title: format!("{tag} | {}", config::TITLE),
             path: tag_href(tag),
@@ -452,7 +484,7 @@ pub fn tag_partial(posts: &[&Post], tm: &HashMap<&str, Placement>) -> String {
     post_list(posts, tm)
 }
 
-pub fn thread_page(ctx: Ctx, thread: &Thread, parts: &[&Post]) -> String {
+pub fn thread_page(ctx: Ctx, page: Page, thread: &Thread, parts: &[&Post]) -> String {
     let items: String = parts
         .iter()
         .enumerate()
@@ -473,6 +505,7 @@ pub fn thread_page(ctx: Ctx, thread: &Thread, parts: &[&Post]) -> String {
     );
     layout(
         ctx,
+        page,
         Layout {
             title: format!("{} | {}", thread.title, config::TITLE),
             path: format!("/thread/{}", thread.id),

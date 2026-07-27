@@ -287,7 +287,7 @@ A parser is responsible for transforming a sequence of tokens into a data struct
 
 > Illustration of an AST taken from the book "Modern Compiler Implementation in ML."
 
-<img src="https://dev-to-uploads.s3.amazonaws.com/uploads/articles/yafyeyuq1phdzbjhhnud.png" />
+<img src="/jsonparser/tokens.png" width="905" height="555" loading="lazy" decoding="async" alt="Abstract syntax tree diagram from Modern Compiler Implementation in ML" />
 
 An Abstract Syntax Tree (AST) is a data structure that represents the syntactic structure of a program. Within the AST, there are several nodes, and each node represents a valid syntactic construct of the program. For example:
 

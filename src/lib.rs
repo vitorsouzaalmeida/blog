@@ -1,3 +1,4 @@
+pub mod assets;
 pub mod clock;
 pub mod config;
 pub mod content;
@@ -27,16 +28,29 @@ pub fn build(root: &Path, dist: &Path, ctx: Ctx) -> Result<()> {
     let tags: Vec<&str> = tag_counts.iter().map(|(t, _)| *t).collect();
     let thread_ids: Vec<&str> = THREADS.iter().map(|t| t.id).collect();
 
+    let css = assets::minify(&content.css);
+    let highlight = assets::minify(&highlight::highlight_css(&highlight::used_classes(posts)));
+    let script_path = assets::script_path(&content.script);
+    let page = assets::Page {
+        css: &css,
+        highlight: &highlight,
+        script: &script_path,
+    };
+
     disk::clean(dist)?;
 
-    disk::write(dist, "index.html", render::home_page(ctx, posts, &tm))?;
+    disk::write(dist, "index.html", render::home_page(ctx, page, posts, &tm))?;
     disk::write(
         dist,
         "blog/index.html",
-        render::blog_index_page(ctx, posts, &tm),
+        render::blog_index_page(ctx, page, posts, &tm),
     )?;
-    disk::write(dist, "tags/index.html", render::tags_page(ctx, &tag_counts))?;
-    disk::write(dist, "highlight.css", highlight::highlight_css())?;
+    disk::write(
+        dist,
+        "tags/index.html",
+        render::tags_page(ctx, page, &tag_counts),
+    )?;
+    disk::write(dist, script_path.trim_start_matches('/'), &content.script)?;
     disk::write(dist, "rss.xml", feeds::rss(&all))?;
     disk::write(
         dist,
@@ -49,7 +63,7 @@ pub fn build(root: &Path, dist: &Path, ctx: Ctx) -> Result<()> {
         disk::write(
             dist,
             format!("blog/{}/index.html", post.slug),
-            render::post_page(ctx, post, nav.as_ref()),
+            render::post_page(ctx, page, post, nav.as_ref()),
         )?;
     }
 
@@ -59,7 +73,7 @@ pub fn build(root: &Path, dist: &Path, ctx: Ctx) -> Result<()> {
         disk::write(
             dist,
             format!("tag/{dir}/index.html"),
-            render::tag_page(ctx, tag, &tagged, &tm),
+            render::tag_page(ctx, page, tag, &tagged, &tm),
         )?;
         disk::write(
             dist,
@@ -74,7 +88,7 @@ pub fn build(root: &Path, dist: &Path, ctx: Ctx) -> Result<()> {
             disk::write(
                 dist,
                 format!("thread/{}/index.html", thread.id),
-                render::thread_page(ctx, thread, &parts),
+                render::thread_page(ctx, page, thread, &parts),
             )?;
         }
     }
