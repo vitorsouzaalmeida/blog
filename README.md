@@ -1,17 +1,13 @@
-Static site built with HTMX and Rust.
+A static site generator that turns Markdown into HTML, and HTMX for interactivity
 
-I'm using Rust as a static site generator to turns Markdown into HTML, and HTMX to add interactivity. This project does not use Node, or a bundler, or a framework on purpose.
+No Node, bundler, or framework because I don't want to run JavaScript on my computer, and you shouldn't either. I'm using a few crates to do the building and wrote a half-baked HTML and CSS parser, as well as an XML writer to handle only this project's needs. They're all based on its specifications.
 
-## Development
+Development:
 
 ```bash
 cargo run --release -- build
 cargo run -- dev
 cargo test
-cargo fmt
-./generateMarkdown.sh "Title"
 ```
-
-## License
 
 Code is under [LICENSE](LICENSE); the posts in `content/` are under [LICENSE-posts](LICENSE-posts).

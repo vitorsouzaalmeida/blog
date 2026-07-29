@@ -30,45 +30,7 @@ fn fnv1a(bytes: &[u8]) -> u64 {
 }
 
 pub fn minify(css: &str) -> String {
-    collapse(&strip_comments(css))
-}
-
-fn strip_comments(css: &str) -> String {
-    css.split("/*")
-        .enumerate()
-        .map(|(i, part)| {
-            if i == 0 {
-                part
-            } else {
-                part.split_once("*/").map(|(_, rest)| rest).unwrap_or("")
-            }
-        })
-        .collect()
-}
-
-fn collapse(css: &str) -> String {
-    css.chars()
-        .fold(String::with_capacity(css.len()), |mut out, c| {
-            if c.is_whitespace() {
-                if !out.is_empty() && !out.ends_with([' ', '{', '}', ';', ':', ',']) {
-                    out.push(' ');
-                }
-            } else {
-                if c == '}' {
-                    while out.ends_with([' ', ';']) {
-                        out.pop();
-                    }
-                } else if matches!(c, '{' | '}' | ';' | ',') {
-                    while out.ends_with(' ') {
-                        out.pop();
-                    }
-                }
-                out.push(c);
-            }
-            out
-        })
-        .trim()
-        .to_string()
+    crate::css::minify(css)
 }
 
 #[cfg(test)]

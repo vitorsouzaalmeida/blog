@@ -5,6 +5,7 @@ use syntect::parsing::SyntaxSet;
 use syntect::util::LinesWithEndings;
 
 use crate::content::Post;
+use crate::css::{self, Token};
 
 pub struct Highlighter {
     ss: SyntaxSet,
@@ -59,30 +60,41 @@ pub fn used_classes(posts: &[Post]) -> BTreeSet<&str> {
         .collect()
 }
 
-fn reachable(selector: &str, used: &BTreeSet<&str>) -> bool {
-    selector.split('.').skip(1).all(|frag| {
-        let class = frag
-            .split(|c: char| !(c.is_alphanumeric() || c == '-' || c == '_'))
-            .next()
-            .unwrap_or("");
-        class.is_empty() || used.contains(class)
-    })
+fn reachable(selector: &[Token], used: &BTreeSet<&str>) -> bool {
+    css::selector_classes(selector).all(|class| used.contains(class.as_ref()))
 }
 
-fn scope(css: &str, prefix: &str, used: &BTreeSet<&str>) -> String {
-    css.split('}')
-        .filter_map(|block| block.split_once('{'))
-        .filter_map(|(head, body)| {
-            let selectors = head.split_once("*/").map_or(head, |(_, rest)| rest);
-            let kept: Vec<String> = selectors
-                .split(',')
-                .map(str::trim)
-                .filter(|s| !s.is_empty() && reachable(s, used))
-                .map(|s| format!("{prefix} {s}"))
-                .collect();
-            let body = body.trim();
-            (!kept.is_empty() && !body.is_empty())
-                .then(|| format!("{} {{\n{body}\n}}\n", kept.join(", ")))
+fn scope(css_src: &str, prefix: &str, used: &BTreeSet<&str>) -> String {
+    let tokens: Vec<Token> = css::tokenize(css_src).collect();
+    scope_rules(&css::rules(&tokens), prefix, used)
+}
+
+fn scope_rules(rules: &[css::Rule], prefix: &str, used: &BTreeSet<&str>) -> String {
+    rules
+        .iter()
+        .map(|rule| match (rule.is_at_rule(), rule.block) {
+            (true, Some(block)) => {
+                let inner = scope_rules(&css::rules(block), prefix, used);
+                match inner.is_empty() {
+                    true => String::new(),
+                    false => format!("{} {{\n{inner}}}\n", css::serialize(rule.prelude).trim()),
+                }
+            }
+            (true, None) => format!("{};\n", css::serialize(rule.prelude).trim()),
+            (false, Some(block)) => {
+                let kept: Vec<String> = css::selectors(rule.prelude)
+                    .into_iter()
+                    .filter(|selector| reachable(selector, used))
+                    .map(|selector| format!("{prefix} {}", css::serialize(selector)))
+                    .collect();
+                let body = css::serialize(block);
+                let body = body.trim();
+                match kept.is_empty() || body.is_empty() {
+                    true => String::new(),
+                    false => format!("{} {{\n{body}\n}}\n", kept.join(", ")),
+                }
+            }
+            (false, None) => String::new(),
         })
         .collect()
 }

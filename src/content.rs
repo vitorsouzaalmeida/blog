@@ -1,77 +1,5 @@
-use std::cmp::Ordering;
-
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct Date {
-    pub y: i32,
-    pub m: u32,
-    pub d: u32,
-}
-
-const MONTHS: [&str; 12] = [
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-];
-const WEEKDAYS: [&str; 7] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-impl Date {
-    pub fn parse(s: &str) -> Result<Date, String> {
-        let date_part = s.split(['T', ' ']).next().unwrap_or(s);
-        let [y, m, d] = date_part.split('-').collect::<Vec<_>>()[..] else {
-            return Err(format!("expected date as YYYY-MM-DD, got {s:?}"));
-        };
-        let bad = |name: &str| format!("invalid {name} in date {s:?}");
-        let date = Date {
-            y: y.trim().parse().map_err(|_| bad("year"))?,
-            m: m.trim().parse().map_err(|_| bad("month"))?,
-            d: d.trim().parse().map_err(|_| bad("day"))?,
-        };
-        match date {
-            Date {
-                m: 1..=12,
-                d: 1..=31,
-                ..
-            } => Ok(date),
-            _ => Err(format!("date out of range: {s:?}")),
-        }
-    }
-
-    pub fn iso(&self) -> String {
-        format!("{:04}-{:02}-{:02}", self.y, self.m, self.d)
-    }
-
-    pub fn dotted(&self) -> String {
-        format!("{:04} · {:02} · {:02}", self.y, self.m, self.d)
-    }
-
-    fn weekday(&self) -> usize {
-        let (y, m) = (self.y, self.m as i32);
-        let mm = if m < 3 { m + 12 } else { m };
-        let y = if m < 3 { y - 1 } else { y };
-        let (k, j) = (y % 100, y / 100);
-        let h = (self.d as i32 + (13 * (mm + 1)) / 5 + k + k / 4 + j / 4 + 5 * j) % 7;
-        ((h + 6) % 7) as usize
-    }
-
-    pub fn rfc822(&self) -> String {
-        format!(
-            "{}, {:02} {} {:04} 00:00:00 GMT",
-            WEEKDAYS[self.weekday()],
-            self.d,
-            MONTHS[(self.m.clamp(1, 12) - 1) as usize],
-            self.y
-        )
-    }
-}
-
-impl Ord for Date {
-    fn cmp(&self, o: &Self) -> Ordering {
-        (self.y, self.m, self.d).cmp(&(o.y, o.m, o.d))
-    }
-}
-impl PartialOrd for Date {
-    fn partial_cmp(&self, o: &Self) -> Option<Ordering> {
-        Some(self.cmp(o))
-    }
-}
+use crate::date::Date;
+use crate::frontmatter::{self, Value};
 
 #[derive(Debug)]
 pub struct Post {
@@ -93,78 +21,75 @@ impl Post {
     }
 }
 
-fn unquote(s: &str) -> String {
-    let t = s.trim();
-    let quoted = |q: char| t.len() >= 2 && t.starts_with(q) && t.ends_with(q);
-    if quoted('"') || quoted('\'') {
-        t[1..t.len() - 1].to_string()
-    } else {
-        t.to_string()
-    }
-}
+const KEYS: [&str; 7] = [
+    "title",
+    "subtitle",
+    "description",
+    "pubDate",
+    "tags",
+    "thread",
+    "threadOrder",
+];
 
 fn split_frontmatter(raw: &str) -> Result<(&str, &str), String> {
-    let rest = raw
-        .strip_prefix("---")
-        .ok_or("missing opening `---` (frontmatter is required)")?;
-    let end = rest
-        .find("\n---")
-        .ok_or("missing closing `---` (frontmatter is never terminated)")?;
-    Ok((
-        &rest[..end],
-        rest[end + 4..].trim_start_matches(['\r', '\n']),
-    ))
+    let after_open = ["---\n", "---\r\n"]
+        .into_iter()
+        .find_map(|fence| raw.strip_prefix(fence))
+        .ok_or("missing opening `---` on a line of its own (frontmatter is required)")?;
+    let open = raw.len() - after_open.len();
+
+    after_open
+        .split_inclusive('\n')
+        .scan(open, |offset, line| {
+            let start = *offset;
+            *offset += line.len();
+            Some((start, line))
+        })
+        .find(|(_, line)| line.trim_end() == "---")
+        .map(|(start, line)| {
+            (
+                &raw[open..start],
+                raw[start + line.len()..].trim_start_matches(['\r', '\n']),
+            )
+        })
+        .ok_or_else(|| "missing closing `---` (frontmatter is never terminated)".to_string())
 }
 
-fn is_key(line: &str, key: &str) -> bool {
-    !line.starts_with([' ', '\t', '-'])
-        && line.split_once(':').is_some_and(|(k, _)| k.trim() == key)
-}
-
-fn scalar<'a>(front: &'a str, key: &str) -> Option<&'a str> {
-    front
-        .lines()
-        .find(|l| is_key(l, key))
-        .and_then(|l| l.split_once(':'))
-        .map(|(_, v)| v.trim())
-        .filter(|v| !v.is_empty())
-}
-
-fn tag_list(front: &str) -> Vec<String> {
-    let from_key = front.lines().skip_while(|l| !is_key(l, "tags"));
-    let value = from_key
-        .clone()
-        .next()
-        .and_then(|l| l.split_once(':'))
-        .map(|(_, v)| v.trim());
-    match value {
-        None => Vec::new(),
-        Some(v) if v.starts_with('[') => v
-            .trim_matches(['[', ']'])
-            .split(',')
-            .map(unquote)
-            .filter(|t| !t.is_empty())
-            .collect(),
-        Some(_) => from_key
-            .skip(1)
-            .map_while(|l| l.trim_start().strip_prefix("- "))
-            .map(unquote)
-            .collect(),
+fn scalar<'a>(fields: &'a [(&str, Value)], key: &str) -> Result<Option<&'a str>, String> {
+    match fields.iter().find(|(k, _)| *k == key) {
+        None => Ok(None),
+        Some((_, Value::Scalar(s))) => Ok(Some(s.as_ref())),
+        Some(_) => Err(format!("`{key}` must be a single value, not a list")),
     }
 }
 
 pub fn parse(raw: &str, slug: &str) -> Result<Post, String> {
     let (front, body) = split_frontmatter(raw)?;
-    let field = |key| scalar(front, key).map(unquote);
+    let fields = frontmatter::parse(front, &KEYS).map_err(|e| e.to_string())?;
+    let field = |key| scalar(&fields, key);
+
+    let tags = match fields.iter().find(|(k, _)| *k == "tags") {
+        None => Vec::new(),
+        Some((_, Value::Seq(items))) => items.iter().map(|t| t.to_string()).collect(),
+        Some(_) => return Err("`tags` must be a list".into()),
+    };
+
+    let thread_order = field("threadOrder")?
+        .map(|v| {
+            v.parse()
+                .map_err(|_| format!("`threadOrder` must be a whole number, got {v:?}"))
+        })
+        .transpose()?;
+
     Ok(Post {
         slug: slug.to_string(),
-        title: field("title").ok_or("missing `title`")?,
-        subtitle: field("subtitle"),
-        description: field("description"),
-        pub_date: Date::parse(&field("pubDate").ok_or("missing `pubDate`")?)?,
-        tags: tag_list(front),
-        thread: field("thread"),
-        thread_order: field("threadOrder").and_then(|v| v.parse().ok()),
+        title: field("title")?.ok_or("missing `title`")?.to_string(),
+        subtitle: field("subtitle")?.map(str::to_string),
+        description: field("description")?.map(str::to_string),
+        pub_date: Date::parse(field("pubDate")?.ok_or("missing `pubDate`")?)?,
+        tags,
+        thread: field("thread")?.map(str::to_string),
+        thread_order,
         body: body.to_string(),
         html: String::new(),
     })
@@ -193,21 +118,6 @@ mod tests {
     }
 
     #[test]
-    fn bad_dates_are_rejected_not_defaulted() {
-        // Each of these used to become 1970-01-01 and sort to the bottom.
-        for bad in [
-            "",
-            "not-a-date",
-            "2023",
-            "2023-08",
-            "2023-8x-13",
-            "2023-13-01",
-        ] {
-            assert!(Date::parse(bad).is_err(), "{bad:?} should not parse");
-        }
-    }
-
-    #[test]
     fn frontmatter_parses_both_tag_forms_and_unquotes() {
         let raw = "---\ntitle: \"Rust: a tour\"\npubDate: 2024-05-06\ntags:\n  - code\n  - math\nthread: t1\nthreadOrder: 2\n---\n\nBody text here\n";
         let p = parse(raw, "hello").unwrap();
@@ -226,6 +136,42 @@ mod tests {
         .unwrap();
         assert_eq!(inline.tags, ["c++", "type theory"]);
         assert!(inline.thread.is_none());
+    }
+
+    #[test]
+    fn every_post_in_the_repository_parses() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("content/blog");
+        let posts: Vec<_> = std::fs::read_dir(&dir)
+            .unwrap()
+            .filter_map(Result::ok)
+            .map(|e| e.path())
+            .filter(|p| p.extension().is_some_and(|x| x == "md"))
+            .collect();
+        assert!(!posts.is_empty(), "no posts found in {}", dir.display());
+        for path in posts {
+            let raw = std::fs::read_to_string(&path).unwrap();
+            let slug = path.file_stem().unwrap().to_string_lossy().to_string();
+            let post = parse(&raw, &slug).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+            assert!(!post.title.is_empty(), "{} has an empty title", slug);
+        }
+    }
+
+    #[test]
+    fn a_scaffolded_post_parses() {
+        let raw = "---\ntitle: My Post\npubDate: 2026-07-28\ntags:\n  - tag1\n# Optional frontmatter:\n# subtitle: A short italic subtitle\n# description: Used for RSS + social meta\n# thread: some-thread-id\n# threadOrder: 1\n---\n\nContent\n";
+        let p = parse(raw, "my-post").unwrap();
+        assert_eq!(p.title, "My Post");
+        assert_eq!(p.tags, ["tag1"]);
+        assert_eq!(p.subtitle, None);
+        assert_eq!(p.body, "Content\n");
+    }
+
+    #[test]
+    fn a_setext_underline_in_the_body_does_not_close_the_frontmatter() {
+        let raw = "---\ntitle: X\npubDate: 2024-01-02\n---\nHeading\n----\ntext\n";
+        let p = parse(raw, "x").unwrap();
+        assert_eq!(p.title, "X");
+        assert_eq!(p.body, "Heading\n----\ntext\n");
     }
 
     #[test]

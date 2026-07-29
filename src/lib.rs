@@ -2,14 +2,19 @@ pub mod assets;
 pub mod clock;
 pub mod config;
 pub mod content;
+pub mod css;
+pub mod date;
 pub mod dev;
 pub mod disk;
 pub mod feeds;
+pub mod frontmatter;
 pub mod highlight;
+pub mod html;
 pub mod markdown;
 pub mod og;
 pub mod render;
 pub mod threads;
+pub mod xml;
 
 use std::io::Result;
 use std::path::Path;
@@ -28,6 +33,7 @@ pub fn build(root: &Path, dist: &Path, ctx: Ctx) -> Result<()> {
     let tags: Vec<&str> = tag_counts.iter().map(|(t, _)| *t).collect();
     let thread_ids: Vec<&str> = THREADS.iter().map(|t| t.id).collect();
 
+    css::check(&content.css).map_err(|(err, at)| stylesheet_error(&content.css, err, at))?;
     let css = assets::minify(&content.css);
     let highlight = assets::minify(&highlight::highlight_css(&highlight::used_classes(posts)));
     let script_path = assets::script_path(&content.script);
@@ -109,6 +115,14 @@ pub fn build(root: &Path, dist: &Path, ctx: Ctx) -> Result<()> {
     }
 
     Ok(())
+}
+
+fn stylesheet_error(css: &str, err: css::Error, at: usize) -> std::io::Error {
+    let line = css[..at].lines().count().max(1);
+    std::io::Error::new(
+        std::io::ErrorKind::InvalidData,
+        format!("stylesheet: {err} at line {line} of the concatenated CSS"),
+    )
 }
 
 fn has_tag(post: &Post, tag: &str) -> bool {
