@@ -1,5 +1,4 @@
 use ab_glyph::{Font, FontRef, GlyphId, PxScale, ScaleFont};
-use image::{ExtendedColorType, ImageEncoder, Rgba, RgbaImage};
 
 use crate::config;
 use crate::content::Post;
@@ -38,6 +37,34 @@ impl Default for Fonts {
     }
 }
 
+/// A `W` by `H` RGBA8 buffer. Every pixel is opaque, so alpha is written once
+/// at creation and never touched again.
+struct Canvas {
+    px: Vec<u8>,
+}
+
+impl Canvas {
+    fn white() -> Canvas {
+        Canvas {
+            px: vec![255; (W * H * 4) as usize],
+        }
+    }
+
+    fn at(x: u32, y: u32) -> usize {
+        ((y * W + x) * 4) as usize
+    }
+
+    fn get(&self, x: u32, y: u32) -> [u8; 3] {
+        let i = Canvas::at(x, y);
+        [self.px[i], self.px[i + 1], self.px[i + 2]]
+    }
+
+    fn set(&mut self, x: u32, y: u32, rgb: [u8; 3]) {
+        let i = Canvas::at(x, y);
+        self.px[i..i + 3].copy_from_slice(&rgb);
+    }
+}
+
 fn measure(font: &FontRef, text: &str, px: f32) -> f32 {
     let sf = font.as_scaled(PxScale::from(px));
     text.chars()
@@ -50,7 +77,7 @@ fn measure(font: &FontRef, text: &str, px: f32) -> f32 {
 }
 
 fn draw_text(
-    img: &mut RgbaImage,
+    img: &mut Canvas,
     font: &FontRef,
     text: &str,
     start_x: f32,
@@ -74,18 +101,17 @@ fn draw_text(
                 let px_x = bounds.min.x as i32 + gx as i32;
                 let px_y = bounds.min.y as i32 + gy as i32;
                 if px_x >= 0 && px_y >= 0 && (px_x as u32) < W && (px_y as u32) < H {
-                    let bg = img.get_pixel(px_x as u32, px_y as u32).0;
+                    let bg = img.get(px_x as u32, px_y as u32);
                     let a = cov.clamp(0.0, 1.0);
                     let blend = |c: u8, b: u8| ((c as f32) * a + (b as f32) * (1.0 - a)) as u8;
-                    img.put_pixel(
+                    img.set(
                         px_x as u32,
                         px_y as u32,
-                        Rgba([
+                        [
                             blend(color[0], bg[0]),
                             blend(color[1], bg[1]),
                             blend(color[2], bg[2]),
-                            255,
-                        ]),
+                        ],
                     );
                 }
             });
@@ -111,7 +137,7 @@ fn wrap(font: &FontRef, text: &str, px: f32, max_w: f32) -> Vec<String> {
 }
 
 pub fn render(fonts: &Fonts, post: &Post) -> Vec<u8> {
-    let mut img = RgbaImage::from_pixel(W, H, Rgba([255, 255, 255, 255]));
+    let mut img = Canvas::white();
 
     draw_text(
         &mut img,
@@ -163,8 +189,13 @@ pub fn render(fonts: &Fonts, post: &Post) -> Vec<u8> {
     );
 
     let mut out = Vec::new();
-    image::codecs::png::PngEncoder::new(&mut out)
-        .write_image(img.as_raw(), W, H, ExtendedColorType::Rgba8)
+    let mut encoder = png::Encoder::new(&mut out, W, H);
+    encoder.set_color(png::ColorType::Rgba);
+    encoder.set_depth(png::BitDepth::Eight);
+    encoder
+        .write_header()
+        .expect("png header")
+        .write_image_data(&img.px)
         .expect("encode png");
     out
 }
