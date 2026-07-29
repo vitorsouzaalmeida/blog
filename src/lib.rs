@@ -1,5 +1,4 @@
 pub mod assets;
-pub mod clock;
 pub mod config;
 pub mod content;
 pub mod css;

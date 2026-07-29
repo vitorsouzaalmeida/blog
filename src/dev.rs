@@ -1,3 +1,4 @@
+use chrono::{Datelike, Local};
 use std::fs;
 use std::io::{BufRead, BufReader, Result, Write};
 use std::net::{TcpListener, TcpStream};
@@ -6,7 +7,6 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, SystemTime};
 
-use crate::clock;
 use crate::config::Ctx;
 
 #[derive(Debug)]
@@ -150,7 +150,7 @@ fn broadcast(clients: &Arc<Mutex<Vec<TcpStream>>>) {
 }
 
 pub fn serve(root: &Path, dist: &Path, port: u16) -> Result<()> {
-    let ctx = Ctx::dev(clock::current_year());
+    let ctx = Ctx::dev(Local::now().year());
     crate::build(root, dist, ctx)?;
 
     let clients: Arc<Mutex<Vec<TcpStream>>> = Arc::new(Mutex::new(Vec::new()));

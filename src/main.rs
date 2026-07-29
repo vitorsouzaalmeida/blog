@@ -1,7 +1,8 @@
+use chrono::{Datelike, Local};
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-use blog::{clock, config::Ctx, dev};
+use blog::{config::Ctx, dev};
 
 fn root() -> PathBuf {
     std::env::current_dir().expect("current directory")
@@ -17,7 +18,7 @@ fn port() -> u16 {
 fn main() -> ExitCode {
     let root = root();
     let dist = root.join("dist");
-    let year = clock::current_year();
+    let year = Local::now().year();
 
     let result = match std::env::args().nth(1).as_deref() {
         Some("dev") => dev::serve(&root, &dist, port()),
