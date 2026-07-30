@@ -1,4 +1,5 @@
-use crate::date::Date;
+use chrono::NaiveDate;
+
 use crate::frontmatter::{self, Value};
 
 #[derive(Debug)]
@@ -6,7 +7,7 @@ pub struct Post {
     pub slug: String,
     pub title: String,
     pub subtitle: Option<String>,
-    pub pub_date: Date,
+    pub pub_date: NaiveDate,
     pub tags: Vec<String>,
     pub thread: Option<String>,
     pub thread_order: Option<i64>,
@@ -81,12 +82,18 @@ pub fn parse(raw: &str, slug: &str) -> Result<Post, String> {
         })
         .transpose()?;
 
+    let pub_date = {
+        let raw = field("pubDate")?.ok_or("missing `pubDate`")?;
+        NaiveDate::parse_from_str(raw, "%Y-%m-%d")
+            .map_err(|e| format!("invalid `pubDate` {raw:?}: {e}"))?
+    };
+
     Ok(Post {
         slug: slug.to_string(),
         title: field("title")?.ok_or("missing `title`")?.to_string(),
         subtitle: field("subtitle")?.map(str::to_string),
         description: field("description")?.map(str::to_string),
-        pub_date: Date::parse(field("pubDate")?.ok_or("missing `pubDate`")?)?,
+        pub_date,
         tags,
         thread: field("thread")?.map(str::to_string),
         thread_order,
@@ -113,8 +120,8 @@ pub fn tag_counts(posts: &[Post]) -> Vec<(&str, usize)> {
 mod tests {
     use super::*;
 
-    fn date(s: &str) -> Date {
-        Date::parse(s).unwrap()
+    fn date(s: &str) -> NaiveDate {
+        NaiveDate::parse_from_str(s, "%Y-%m-%d").unwrap()
     }
 
     #[test]

@@ -2,7 +2,6 @@ pub mod assets;
 pub mod config;
 pub mod content;
 pub mod css;
-pub mod date;
 pub mod dev;
 pub mod disk;
 pub mod feeds;

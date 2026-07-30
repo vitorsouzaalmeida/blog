@@ -176,7 +176,7 @@ pub fn render(fonts: &Fonts, post: &Post) -> Vec<u8> {
         MUTED,
     );
 
-    let date = post.pub_date.iso();
+    let date = post.pub_date.to_string();
     let dw = measure(&fonts.regular, &date, META_PX);
     draw_text(
         &mut img,

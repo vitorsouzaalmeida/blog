@@ -17,7 +17,12 @@ fn item<'a>(post: &'a Post) -> Node<'a> {
             [("isPermaLink", Cow::Borrowed("true"))],
             [Node::text(url)],
         ),
-        Node::line("pubDate", post.pub_date.rfc822()),
+        Node::line(
+            "pubDate",
+            post.pub_date
+                .format("%a, %d %b %Y 00:00:00 GMT")
+                .to_string(),
+        ),
     ];
 
     let description = post.summary().map(|s| Node::line("description", s));
@@ -89,14 +94,14 @@ pub fn sitemap(posts: &[&Post], tags: &[&str], thread_ids: &[&str]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::date::Date;
+    use chrono::NaiveDate;
 
     fn post(title: &str, summary: Option<&str>) -> Post {
         Post {
             slug: "s".into(),
             title: title.into(),
             subtitle: summary.map(str::to_string),
-            pub_date: Date::parse("2024-01-02").unwrap(),
+            pub_date: NaiveDate::parse_from_str("2024-01-02", "%Y-%m-%d").unwrap(),
             tags: Vec::new(),
             thread: None,
             thread_order: None,

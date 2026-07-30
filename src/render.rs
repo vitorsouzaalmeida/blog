@@ -145,7 +145,7 @@ pub fn post_list(posts: &[&Post], tm: &HashMap<&str, Placement>) -> String {
                 .unwrap_or_default();
             format!(
                 "<li class=\"post-item\">\n        <time class=\"post-date\">{}</time>\n        <div class=\"post-item-body\">\n          {}\n          {}\n        </div>\n      </li>",
-                post.pub_date.iso(),
+                post.pub_date,
                 link(&format!("/blog/{}", post.slug), &esc(&post.title), false, Some("post-link")),
                 thread
             )
@@ -346,7 +346,7 @@ pub fn blog_index_page(
 }
 
 pub fn post_page(ctx: Ctx, page: Page, post: &Post, nav: Option<&ThreadNav>) -> String {
-    let date_part = post.pub_date.dotted();
+    let date_part = post.pub_date.format("%Y · %m · %d");
     let tags_html = if post.tags.is_empty() {
         String::new()
     } else {
@@ -493,7 +493,7 @@ pub fn thread_page(ctx: Ctx, page: Page, thread: &Thread, parts: &[&Post]) -> St
                 "\n      <li class=\"post-item\">\n        <span class=\"post-date\">part {}</span>\n        <div class=\"post-item-body\">\n          {}\n          <span class=\"thread-part-date\">{}</span>\n        </div>\n      </li>",
                 i + 1,
                 link(&format!("/blog/{}", post.slug), &esc(&post.title), false, Some("post-link")),
-                post.pub_date.iso()
+                post.pub_date
             )
         })
         .collect();
