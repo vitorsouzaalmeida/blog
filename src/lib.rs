@@ -1,4 +1,3 @@
-pub mod assets;
 pub mod config;
 pub mod content;
 pub mod css;
@@ -6,7 +5,6 @@ pub mod dev;
 pub mod disk;
 pub mod feeds;
 pub mod frontmatter;
-pub mod highlight;
 pub mod html;
 pub mod markdown;
 pub mod og;
@@ -19,11 +17,10 @@ use std::path::Path;
 
 use config::Ctx;
 use content::Post;
-use highlight::Highlighter;
 use threads::THREADS;
 
 pub fn build(root: &Path, dist: &Path, ctx: Ctx) -> Result<()> {
-    let content = disk::load(root, &Highlighter::new())?;
+    let content = disk::load(root)?;
     let posts = &content.posts;
     let all: Vec<&Post> = posts.iter().collect();
     let tm = threads::thread_map(posts);
@@ -31,11 +28,15 @@ pub fn build(root: &Path, dist: &Path, ctx: Ctx) -> Result<()> {
     let tags: Vec<&str> = tag_counts.iter().map(|(t, _)| *t).collect();
     let thread_ids: Vec<&str> = THREADS.iter().map(|t| t.id).collect();
 
-    css::check(&content.css).map_err(|(err, at)| stylesheet_error(&content.css, err, at))?;
-    let css = assets::minify(&content.css);
-    let highlight = assets::minify(&highlight::highlight_css(&highlight::used_classes(posts)));
-    let script_path = assets::script_path(&content.script);
-    let page = assets::Page {
+    css::check(&content.css)
+        .map_err(|(err, at)| stylesheet_error("the concatenated CSS", &content.css, err, at))?;
+    css::check(&content.highlight).map_err(|(err, at)| {
+        stylesheet_error(disk::HIGHLIGHT_STYLESHEET, &content.highlight, err, at)
+    })?;
+    let css = css::minify(&content.css);
+    let highlight = css::minify(&content.highlight);
+    let script_path = render::script_path(&content.script);
+    let page = render::Page {
         css: &css,
         highlight: &highlight,
         script: &script_path,
@@ -115,11 +116,11 @@ pub fn build(root: &Path, dist: &Path, ctx: Ctx) -> Result<()> {
     Ok(())
 }
 
-fn stylesheet_error(css: &str, err: css::Error, at: usize) -> std::io::Error {
+fn stylesheet_error(name: &str, css: &str, err: css::Error, at: usize) -> std::io::Error {
     let line = css[..at].lines().count().max(1);
     std::io::Error::new(
         std::io::ErrorKind::InvalidData,
-        format!("stylesheet: {err} at line {line} of the concatenated CSS"),
+        format!("stylesheet: {err} at line {line} of {name}"),
     )
 }
 

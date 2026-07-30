@@ -55,6 +55,7 @@ impl<'a> Token<'a> {
         }
     }
 
+    #[cfg(test)]
     fn is_trivia(&self) -> bool {
         matches!(self, Token::Whitespace(_) | Token::Comment(_))
     }
@@ -312,7 +313,7 @@ fn token_at(src: &str, i: usize) -> Option<(Token<'_>, usize)> {
     })
 }
 
-pub fn scan(src: &str) -> impl Iterator<Item = (Token<'_>, usize)> {
+fn scan(src: &str) -> impl Iterator<Item = (Token<'_>, usize)> {
     std::iter::successors(
         token_at(src, 0).map(|(t, e)| ((t, 0), e)),
         move |&(_, e)| token_at(src, e).map(|(t, next)| ((t, e), next)),
@@ -320,111 +321,8 @@ pub fn scan(src: &str) -> impl Iterator<Item = (Token<'_>, usize)> {
     .map(|(pair, _)| pair)
 }
 
-pub fn tokenize(src: &str) -> impl Iterator<Item = Token<'_>> {
+fn tokenize(src: &str) -> impl Iterator<Item = Token<'_>> {
     scan(src).map(|(t, _)| t)
-}
-
-pub fn unescape(raw: &str) -> Cow<'_, str> {
-    if !raw.contains('\\') {
-        return Cow::Borrowed(raw);
-    }
-    let mut out = String::with_capacity(raw.len());
-    let mut i = 0;
-    while let Some(c) = at(raw, i) {
-        match c {
-            '\\' if valid_escape(raw, i) => {
-                let end = escape_end(raw, i);
-                let body = &raw[i + 1..end];
-                let hex: String = body.chars().take_while(|c| c.is_ascii_hexdigit()).collect();
-                out.push(match hex.is_empty() {
-                    false => u32::from_str_radix(&hex, 16)
-                        .ok()
-                        .filter(|n| *n != 0)
-                        .and_then(char::from_u32)
-                        .unwrap_or('\u{FFFD}'),
-                    true => body.chars().next().unwrap_or('\u{FFFD}'),
-                });
-                i = end;
-            }
-            c => {
-                out.push(c);
-                i += c.len_utf8();
-            }
-        }
-    }
-    Cow::Owned(out)
-}
-
-pub struct Rule<'a, 't> {
-    pub prelude: &'t [Token<'a>],
-    pub block: Option<&'t [Token<'a>]>,
-}
-
-impl<'a, 't> Rule<'a, 't> {
-    pub fn is_at_rule(&self) -> bool {
-        matches!(self.prelude.first(), Some(Token::AtKeyword(_)))
-    }
-}
-
-fn depth_delta(t: &Token) -> isize {
-    match t {
-        Token::OpenCurly | Token::OpenParen | Token::OpenSquare | Token::Function(_) => 1,
-        Token::CloseCurly | Token::CloseParen | Token::CloseSquare => -1,
-        _ => 0,
-    }
-}
-
-fn block_close(tokens: &[Token], open: usize) -> usize {
-    let mut depth = 0isize;
-    for (k, t) in tokens.iter().enumerate().skip(open) {
-        depth += depth_delta(t);
-        if depth == 0 {
-            return k;
-        }
-    }
-    tokens.len()
-}
-
-pub fn rules<'a, 't>(tokens: &'t [Token<'a>]) -> Vec<Rule<'a, 't>> {
-    let mut out = Vec::new();
-    let mut i = 0;
-    while i < tokens.len() {
-        if tokens[i].is_trivia() {
-            i += 1;
-            continue;
-        }
-        let at_rule = matches!(tokens[i], Token::AtKeyword(_));
-        let mut depth = 0isize;
-        let mut j = i;
-        let stop = loop {
-            match tokens.get(j) {
-                None => break None,
-                Some(Token::OpenCurly) if depth == 0 => break Some(j),
-                Some(Token::Semicolon) if depth == 0 && at_rule => break None,
-                Some(t) => depth = (depth + depth_delta(t)).max(0),
-            }
-            j += 1;
-        };
-        match stop {
-            Some(open) => {
-                let close = block_close(tokens, open);
-                out.push(Rule {
-                    prelude: &tokens[i..open],
-                    block: Some(&tokens[open + 1..close.min(tokens.len())]),
-                });
-                i = close + 1;
-            }
-            None => {
-                let end = tokens.len().min(j + 1);
-                out.push(Rule {
-                    prelude: &tokens[i..j.min(tokens.len())],
-                    block: None,
-                });
-                i = end;
-            }
-        }
-    }
-    out
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -561,48 +459,6 @@ pub fn minify(css: &str) -> String {
     out
 }
 
-pub fn selector_classes<'t, 'a>(
-    selector: &'t [Token<'a>],
-) -> impl Iterator<Item = Cow<'a, str>> + 't {
-    selector.windows(2).filter_map(|pair| match pair {
-        [Token::Delim('.'), Token::Ident(name)] => Some(unescape(name)),
-        _ => None,
-    })
-}
-
-pub fn serialize(tokens: &[Token]) -> String {
-    tokens.iter().map(|t| t.raw()).collect()
-}
-
-pub fn selectors<'t, 'a>(prelude: &'t [Token<'a>]) -> Vec<&'t [Token<'a>]> {
-    let mut groups = Vec::new();
-    let mut start = 0;
-    let mut depth = 0isize;
-    for (k, t) in prelude.iter().enumerate() {
-        match t {
-            Token::Comma if depth == 0 => {
-                groups.push(trim_trivia(&prelude[start..k]));
-                start = k + 1;
-            }
-            t => depth = (depth + depth_delta(t)).max(0),
-        }
-    }
-    groups.push(trim_trivia(&prelude[start..]));
-    groups.into_iter().filter(|g| !g.is_empty()).collect()
-}
-
-fn trim_trivia<'t, 'a>(tokens: &'t [Token<'a>]) -> &'t [Token<'a>] {
-    let start = tokens
-        .iter()
-        .position(|t| !t.is_trivia())
-        .unwrap_or(tokens.len());
-    let end = tokens
-        .iter()
-        .rposition(|t| !t.is_trivia())
-        .map_or(start, |k| k + 1);
-    &tokens[start..end]
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -656,20 +512,8 @@ mod tests {
     }
 
     #[test]
-    fn nested_at_rules_do_not_break_rule_boundaries() {
-        let toks = kinds("@media (min-width:1px){a{top:0}b{top:1}}c{top:2}");
-        let rs = rules(&toks);
-        assert_eq!(rs.len(), 2, "expected the @media and the trailing rule");
-        assert!(rs[0].is_at_rule());
-        assert_eq!(rules(rs[0].block.unwrap()).len(), 2, "inner rules");
-        assert_eq!(serialize(rs[1].prelude), "c");
-    }
-
-    #[test]
     fn a_brace_inside_a_string_or_url_does_not_open_a_block() {
         for css in [r#"a{content:"}"}"#, r#"a{background:url(a}b)}"#] {
-            let toks = kinds(css);
-            assert_eq!(rules(&toks).len(), 1, "for {css:?}");
             assert_eq!(check(css).map_err(|(e, _)| e), Ok(()), "for {css:?}");
         }
     }
@@ -721,7 +565,11 @@ mod tests {
 
     #[test]
     fn tokenizing_the_real_stylesheets_round_trips() {
-        for path in ["static/styles.css", "static/fonts/fonts.css"] {
+        for path in [
+            "static/styles.css",
+            "static/fonts/fonts.css",
+            "static/highlight.css",
+        ] {
             let css = std::fs::read_to_string(path).unwrap();
             let out: String = tokenize(&css).map(|t| t.raw().to_string()).collect();
             assert_eq!(out, css, "{path} did not round-trip");
@@ -734,15 +582,8 @@ mod tests {
     }
 
     #[test]
-    fn escapes_are_unescaped_for_matching_but_never_for_output() {
-        assert_eq!(unescape("characterclass\\23 "), "characterclass#");
-        assert_eq!(unescape("c\\2b \\2b "), "c++");
+    fn escapes_are_never_unescaped_for_output() {
         assert!(minify(".a\\23 {top:0}").contains("\\23 "));
-    }
-
-    #[test]
-    fn unescaping_text_without_a_backslash_does_not_allocate() {
-        assert!(matches!(unescape("plain"), Cow::Borrowed(_)));
     }
 
     #[test]
@@ -812,7 +653,6 @@ mod tests {
                 "{css:?} produced {out:?}"
             );
         }
-        assert_eq!(unescape("a\\3c b"), "a<b");
     }
 
     #[test]
@@ -821,23 +661,25 @@ mod tests {
     }
 
     #[test]
-    fn selector_classes_ignores_dots_that_are_not_class_selectors() {
-        let classes = |s: &str| -> Vec<String> {
-            let toks = kinds(s);
-            selector_classes(&toks).map(|c| c.to_string()).collect()
-        };
-        assert_eq!(classes(".a.b .c"), ["a", "b", "c"]);
-        assert_eq!(classes("p"), Vec::<String>::new());
-        assert_eq!(classes(r#"a[href=".x"]"#), Vec::<String>::new());
-        assert_eq!(classes("a{margin:.5em}"), Vec::<String>::new());
+    fn minify_collapses_without_breaking_selectors() {
+        assert_eq!(minify("a {\n  color: red;\n}"), "a{color:red}");
+        assert_eq!(minify("/* note */\np { margin: 0 }"), "p{margin:0}");
+        assert_eq!(minify("h1,\nh2 { top: 0; }"), "h1,h2{top:0}");
     }
 
     #[test]
-    fn a_prelude_splits_on_top_level_commas_only() {
-        let toks = kinds("h1, h2:not(.a, .b)");
-        let groups = selectors(&toks);
-        assert_eq!(groups.len(), 2);
-        assert_eq!(serialize(groups[0]), "h1");
-        assert_eq!(serialize(groups[1]), "h2:not(.a, .b)");
+    fn minify_keeps_the_spaces_that_carry_meaning() {
+        assert_eq!(
+            minify("article :not(pre) > code { padding: 1px 5px; }"),
+            "article :not(pre) > code{padding:1px 5px}"
+        );
+        assert_eq!(
+            minify("@media (min-width: 768px) { p { top: 0 } }"),
+            "@media (min-width:768px){p{top:0}}"
+        );
+        assert_eq!(
+            minify("@font-face { src: url(/a.woff2) format(\"woff2\"); }"),
+            "@font-face{src:url(/a.woff2) format(\"woff2\")}"
+        );
     }
 }

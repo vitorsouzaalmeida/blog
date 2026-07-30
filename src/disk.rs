@@ -2,10 +2,21 @@ use std::fs;
 use std::io::{Error, ErrorKind, Result};
 use std::path::{Path, PathBuf};
 
-use crate::assets;
 use crate::content::{self, Post};
-use crate::highlight::Highlighter;
 use crate::markdown;
+
+/// Concatenated and inlined into every page.
+pub const STYLESHEETS: [&str; 2] = ["fonts/fonts.css", "styles.css"];
+
+/// Inlined only into pages that contain a code block.
+pub const HIGHLIGHT_STYLESHEET: &str = "highlight.css";
+
+pub const SCRIPTS: [&str; 4] = [
+    "vendor/htmx.min.js",
+    "vendor/head-support.min.js",
+    "vendor/preload.min.js",
+    "vendor/idiomorph-ext.min.js",
+];
 
 #[derive(Debug)]
 pub struct Asset {
@@ -18,6 +29,7 @@ pub struct Content {
     pub posts: Vec<Post>,
     pub assets: Vec<Asset>,
     pub css: String,
+    pub highlight: String,
     pub script: String,
 }
 
@@ -25,7 +37,7 @@ fn invalid(path: &Path, msg: impl std::fmt::Display) -> Error {
     Error::new(ErrorKind::InvalidData, format!("{}: {msg}", path.display()))
 }
 
-fn load_posts(dir: &Path, hl: &Highlighter) -> Result<Vec<Post>> {
+fn load_posts(dir: &Path) -> Result<Vec<Post>> {
     let mut paths: Vec<PathBuf> = fs::read_dir(dir)
         .map_err(|e| invalid(dir, format!("cannot read content directory ({e})")))?
         .filter_map(|e| e.ok())
@@ -46,7 +58,7 @@ fn load_posts(dir: &Path, hl: &Highlighter) -> Result<Vec<Post>> {
         })
         .collect::<Result<Vec<Post>>>()?;
 
-    Ok(markdown::render_posts(posts, hl))
+    Ok(markdown::render_posts(posts))
 }
 
 fn concat(dir: &Path, names: &[&str], sep: &str) -> Result<String> {
@@ -62,7 +74,9 @@ fn concat(dir: &Path, names: &[&str], sep: &str) -> Result<String> {
 
 fn is_inlined(rel: &Path) -> bool {
     let rel = rel.to_string_lossy().replace('\\', "/");
-    assets::STYLESHEETS.contains(&rel.as_str()) || assets::SCRIPTS.contains(&rel.as_str())
+    rel == HIGHLIGHT_STYLESHEET
+        || STYLESHEETS.contains(&rel.as_str())
+        || SCRIPTS.contains(&rel.as_str())
 }
 
 fn list_assets(dir: &Path) -> Result<Vec<Asset>> {
@@ -93,13 +107,14 @@ fn list_assets(dir: &Path) -> Result<Vec<Asset>> {
     Ok(assets)
 }
 
-pub fn load(root: &Path, hl: &Highlighter) -> Result<Content> {
+pub fn load(root: &Path) -> Result<Content> {
     let static_dir = root.join("static");
     Ok(Content {
-        posts: load_posts(&root.join("content/blog"), hl)?,
+        posts: load_posts(&root.join("content/blog"))?,
         assets: list_assets(&static_dir)?,
-        css: concat(&static_dir, &assets::STYLESHEETS, "\n")?,
-        script: concat(&static_dir, &assets::SCRIPTS, ";\n")?,
+        css: concat(&static_dir, &STYLESHEETS, "\n")?,
+        highlight: concat(&static_dir, &[HIGHLIGHT_STYLESHEET], "")?,
+        script: concat(&static_dir, &SCRIPTS, ";\n")?,
     })
 }
 

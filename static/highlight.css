@@ -1,0 +1,147 @@
+/* Syntax highlighting for `<pre class="hl">` code blocks.
+ *
+ * Hand-maintained. Class names are syntect scope names, emitted by
+ * `markdown::highlight` with `ClassStyle::Spaced`; a scope with no rule here
+ * simply inherits the surrounding text color. When a post introduces a
+ * language whose tokens come out unstyled, add the rule you want below.
+ *
+ * Light colors follow syntect's `InspiredGitHub`, dark follows
+ * `base16-ocean.dark`. Inlined into a page only when it contains a code
+ * block -- see `Layout::highlighted` in `render.rs`.
+ */
+
+/* ---------- light ---------- */
+.hl .comment {
+  color: #969896;
+  font-style: italic;
+}
+.hl .string {
+  color: #183691;
+}
+.hl .constant.numeric {
+  color: #0086b3;
+}
+.hl .constant.language {
+  color: #0086b3;
+}
+.hl .constant.other, .hl .variable.other.constant {
+  color: #0086b3;
+}
+.hl .variable {
+  color: #323232;
+}
+.hl .keyword {
+  color: #a71d5d;
+  font-weight: bold;
+}
+.hl .storage {
+  color: #a71d5d;
+  font-weight: bold;
+}
+.hl .storage.type {
+  color: #a71d5d;
+  font-weight: bold;
+}
+.hl .entity.name.class {
+  color: #0086b3;
+}
+.hl .entity.name.function {
+  color: #795da3;
+  font-weight: bold;
+}
+.hl .variable.parameter {
+  color: #323232;
+}
+.hl .entity.name.tag {
+  color: #63a35c;
+}
+.hl .support.function {
+  color: #62a35c;
+}
+.hl .support.constant {
+  color: #0086b3;
+}
+.hl .support.type, .hl .support.class {
+  color: #0086b3;
+}
+.hl .support.other.variable {
+  color: #323232;
+}
+.hl .source.js .entity.name.function {
+  color: #323232;
+}
+.hl .source.js .meta.function .entity.name.function, .hl .source.js .entity.name.function .meta.function {
+  color: #795da3;
+  font-weight: bold;
+}
+.hl .entity.name.type.new.js {
+  color: #795da3;
+}
+.hl .source.js .support.function {
+  color: #0086b3;
+}
+.hl .support.type.object.console.js {
+  color: #795da3;
+}
+
+/* ---------- dark ---------- */
+[data-theme="dark"] .hl .variable.parameter.function {
+  color: #c0c5ce;
+}
+[data-theme="dark"] .hl .comment, [data-theme="dark"] .hl .punctuation.definition.comment {
+  color: #65737e;
+}
+[data-theme="dark"] .hl .punctuation.definition.string,
+[data-theme="dark"] .hl .punctuation.definition.variable,
+[data-theme="dark"] .hl .punctuation.definition.parameters {
+  color: #c0c5ce;
+}
+[data-theme="dark"] .hl .keyword.operator {
+  color: #c0c5ce;
+}
+[data-theme="dark"] .hl .keyword {
+  color: #b48ead;
+}
+[data-theme="dark"] .hl .variable {
+  color: #bf616a;
+}
+[data-theme="dark"] .hl .entity.name.function, [data-theme="dark"] .hl .variable.function {
+  color: #8fa1b3;
+}
+[data-theme="dark"] .hl .support.class, [data-theme="dark"] .hl .entity.name.class, [data-theme="dark"] .hl .entity.name.type.class {
+  color: #ebcb8b;
+}
+[data-theme="dark"] .hl .meta.class {
+  color: #eff1f5;
+}
+[data-theme="dark"] .hl .storage {
+  color: #b48ead;
+}
+[data-theme="dark"] .hl .support.function {
+  color: #96b5b4;
+}
+[data-theme="dark"] .hl .string, [data-theme="dark"] .hl .constant.other.symbol {
+  color: #a3be8c;
+}
+[data-theme="dark"] .hl .constant.numeric {
+  color: #d08770;
+}
+[data-theme="dark"] .hl .constant {
+  color: #d08770;
+}
+[data-theme="dark"] .hl .entity.name.tag {
+  color: #bf616a;
+}
+[data-theme="dark"] .hl .punctuation.definition.entity {
+  color: #8fa1b3;
+}
+[data-theme="dark"] .hl .entity.name.section {
+  color: #8fa1b3;
+}
+[data-theme="dark"] .hl .meta.separator {
+  color: #c0c5ce;
+  background-color: #4f5b66;
+}
+[data-theme="dark"] .hl .string.regexp {
+  color: #96b5b4;
+}

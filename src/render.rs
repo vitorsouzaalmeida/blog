@@ -1,10 +1,33 @@
 use std::cmp::Reverse;
 use std::collections::HashMap;
 
-use crate::assets::{Page, PRELOAD_FONTS};
 use crate::config::{self, Ctx};
 use crate::content::Post;
 use crate::threads::{Placement, Thread, ThreadNav};
+
+const PRELOAD_FONTS: [&str; 2] = [
+    "/fonts/newsreader-300-700-normal-latin.woff2",
+    "/fonts/jetbrainsmono-400-normal-latin.woff2",
+];
+
+/// The inlined assets every page needs, minified once per build.
+#[derive(Clone, Copy)]
+pub struct Page<'a> {
+    pub css: &'a str,
+    pub highlight: &'a str,
+    pub script: &'a str,
+}
+
+fn fnv1a(bytes: &[u8]) -> u64 {
+    bytes.iter().fold(0xcbf29ce484222325, |h, b| {
+        (h ^ *b as u64).wrapping_mul(0x100000001b3)
+    })
+}
+
+/// Content-addressed so the script can be cached forever.
+pub fn script_path(body: &str) -> String {
+    format!("/vendor/app.{:016x}.js", fnv1a(body.as_bytes()))
+}
 
 pub fn esc(s: &str) -> String {
     s.chars()
@@ -546,5 +569,12 @@ mod tests {
         for tag in ["code", "c++", "type theory", "R&D"] {
             assert_eq!(tag_href(tag), format!("/tag/{}", tag_path(tag)));
         }
+    }
+
+    #[test]
+    fn script_path_tracks_content() {
+        assert_eq!(script_path("a"), script_path("a"));
+        assert_ne!(script_path("a"), script_path("b"));
+        assert!(script_path("a").starts_with("/vendor/app."));
     }
 }

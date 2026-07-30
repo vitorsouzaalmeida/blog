@@ -18,7 +18,6 @@ pulldown-cmark = { version = "0.13", default-features = false, features = [
 latex2mathml = "0.2"
 syntect = { version = "5", default-features = false, features = [
   "default-syntaxes",
-  "default-themes",
   "html",
   "regex-fancy",
 ] }
