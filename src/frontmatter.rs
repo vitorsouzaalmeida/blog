@@ -336,14 +336,13 @@ fn flow_seq(line: usize, body: &str) -> Result<(Value<'_>, &str), Error> {
 mod tests {
     use super::*;
 
-    const KEYS: [&str; 7] = [
+    const KEYS: [&str; 6] = [
         "title",
         "subtitle",
         "description",
+        "draft",
         "pubDate",
         "tags",
-        "thread",
-        "threadOrder",
     ];
 
     fn get<'a>(front: &'a str, key: &str) -> Option<Value<'a>> {
@@ -415,9 +414,9 @@ mod tests {
 
     #[test]
     fn a_block_list_may_be_followed_by_more_keys() {
-        let front = "tags:\n  - code\nthread: t1\ntitle: X\n";
+        let front = "tags:\n  - code\ndraft: true\ntitle: X\n";
         assert_eq!(seq_of(front, "tags"), ["code"]);
-        assert_eq!(scalar_of(front, "thread").as_deref(), Some("t1"));
+        assert_eq!(scalar_of(front, "draft").as_deref(), Some("true"));
         assert_eq!(scalar_of(front, "title").as_deref(), Some("X"));
     }
 
@@ -426,17 +425,17 @@ mod tests {
         for (front, line, needle) in [
             ("title: X\ndescription: >\n  long\n", 2, "block scalar"),
             ("title: X\ndescription: |\n  long\n", 2, "block scalar"),
-            ("title: X\nthread: {a: b}\n", 2, "flow mapping"),
-            ("title: X\nthread: &anchor\n", 2, "anchors"),
-            ("title: X\nthread: *alias\n", 2, "anchors"),
-            ("title: X\nthread: !tag\n", 2, "tags are not supported"),
+            ("title: X\nsubtitle: {a: b}\n", 2, "flow mapping"),
+            ("title: X\nsubtitle: &anchor\n", 2, "anchors"),
+            ("title: X\nsubtitle: *alias\n", 2, "anchors"),
+            ("title: X\nsubtitle: !tag\n", 2, "tags are not supported"),
             ("title: X\n<<: base\n", 2, "merge key"),
             ("title: X\n---\n", 2, "document marker"),
             ("title: X\n%YAML 1.2\n", 2, "directive"),
             ("title: X\nog:\n  image: y\n", 3, "nested mapping"),
             ("title: X\ntitle: Y\n", 2, "duplicate key"),
             ("title: X\ntitel: Y\n", 2, "unknown key"),
-            ("title: X\n\tthread: y\n", 2, "tab"),
+            ("title: X\n\tsubtitle: y\n", 2, "tab"),
             ("title: a: b\n", 1, "quote it"),
             ("title: \"unterminated\n", 1, "unterminated quoted string"),
             ("title: \"bad \\q\"\n", 1, "unknown escape"),
@@ -504,7 +503,7 @@ mod tests {
 
     #[test]
     fn whole_line_comments_are_ignored() {
-        let front = "title: X\npubDate: 2024-01-02\ntags:\n  - tag1\n# Optional frontmatter:\n# subtitle: A short italic subtitle\n# thread: some-thread-id\n";
+        let front = "title: X\npubDate: 2024-01-02\ntags:\n  - tag1\n# Optional frontmatter:\n# subtitle: A short italic subtitle\n# description: Used for RSS and social meta\n";
         assert_eq!(scalar_of(front, "title").as_deref(), Some("X"));
         assert_eq!(seq_of(front, "tags"), ["tag1"]);
         assert_eq!(scalar_of(front, "subtitle"), None);

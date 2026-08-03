@@ -1,10 +1,9 @@
 //! The one value every page is rendered against.
 //!
-//! Deliberately denormalised: each tag carries its own `posts` and each thread
-//! its own `parts`. A tag page then writes `data-each="posts"` and the tag's
-//! list shadows the site-wide one through `fill`'s scope chain, which is what
-//! removes the need for a query language. At eight posts the duplication is
-//! pointer copies.
+//! Deliberately denormalised: each tag carries its own `posts`. A tag page then
+//! writes `data-each="posts"` and the tag's list shadows the site-wide one
+//! through `fill`'s scope chain, which is what removes the need for a query
+//! language. At six posts the duplication is pointer copies.
 //!
 //! Ordering is baked in here -- `posts` is always newest first -- so no
 //! template ever expresses a sort. Exactly one field is `Value::Html`, a post's
@@ -16,7 +15,7 @@
 
 use std::cmp::Reverse;
 
-use crate::content::{self, Post, Thread};
+use crate::content::{self, Post};
 use crate::fill::Value;
 use crate::routes;
 use crate::Ctx;
@@ -32,7 +31,6 @@ type Pattern<'a> = (&'a str, &'a str);
 struct Where<'a> {
     posts: Pattern<'a>,
     tags: Pattern<'a>,
-    threads: Pattern<'a>,
 }
 
 fn pattern<'a>(routes: &Routes<'a>, collection: &str) -> Result<Pattern<'a>, String> {
@@ -77,16 +75,14 @@ pub fn build<'a>(
     ctx: Ctx,
     routes: &Routes,
 ) -> Result<Value<'a>, String> {
-    let threads = content::threads(posts)?;
     let at = Where {
         posts: pattern(routes, "posts")?,
         tags: pattern(routes, "tags")?,
-        threads: pattern(routes, "threads")?,
     };
 
     let items: Vec<Value<'a>> = newest_first(posts)
         .into_iter()
-        .map(|p| post_item(p, posts, &threads, &at))
+        .map(|p| post_item(p, &at))
         .collect();
 
     Ok(Value::map([
@@ -110,12 +106,8 @@ pub fn build<'a>(
             Value::list(
                 content::tag_counts(posts)
                     .into_iter()
-                    .map(|(tag, count)| tag_item(tag, count, posts, &threads, &at)),
+                    .map(|(tag, count)| tag_item(tag, count, posts, &at)),
             ),
-        ),
-        (
-            "threads",
-            Value::list(threads.iter().map(|t| thread_item(t, posts, &at))),
         ),
         ("posts", Value::List(items)),
     ]))
@@ -140,12 +132,7 @@ fn date(post: &Post) -> String {
     post.pub_date.format("%Y · %m · %d").to_string()
 }
 
-fn post_item<'a>(
-    post: &'a Post,
-    posts: &'a [Post],
-    threads: &[Thread<'a>],
-    at: &Where,
-) -> Value<'a> {
+fn post_item<'a>(post: &'a Post, at: &Where) -> Value<'a> {
     let url = path(at.posts, &post.slug);
     let tags = post.tags.iter().map(|tag| {
         Value::map([
@@ -171,7 +158,6 @@ fn post_item<'a>(
             Value::text(format!("{}{}", crate::WEBSITE, og_image(&url))),
         ),
         ("tags", Value::list(tags)),
-        ("thread", thread_box(post, posts, threads, at)),
         ("html", Value::html(post.html.as_str())),
         ("url", Value::text(url)),
     ])
@@ -182,37 +168,7 @@ pub fn og_image(post_url: &str) -> String {
     format!("{post_url}/og.png")
 }
 
-/// Where the post sits in its series, or `Nil` -- which removes the thread box
-/// on the post page and the thread tag in a list, the only two things that ask.
-fn thread_box<'a>(post: &Post, posts: &'a [Post], threads: &[Thread<'a>], at: &Where) -> Value<'a> {
-    let step = |p: Option<&'a Post>| match p {
-        None => Value::Nil,
-        Some(p) => Value::map([
-            ("url", Value::text(path(at.posts, &p.slug))),
-            ("title", Value::text(p.title.as_str())),
-        ]),
-    };
-
-    match content::thread_nav(post, posts, threads) {
-        None => Value::Nil,
-        Some(n) => Value::map([
-            ("url", Value::text(path(at.threads, n.thread.id))),
-            ("title", Value::text(n.thread.title)),
-            ("index", Value::num(n.index)),
-            ("total", Value::num(n.total)),
-            ("prev", step(n.prev)),
-            ("next", step(n.next)),
-        ]),
-    }
-}
-
-fn tag_item<'a>(
-    tag: &'a str,
-    count: usize,
-    posts: &'a [Post],
-    threads: &[Thread<'a>],
-    at: &Where,
-) -> Value<'a> {
+fn tag_item<'a>(tag: &'a str, count: usize, posts: &'a [Post], at: &Where) -> Value<'a> {
     let slug = tag_slug(tag);
     let tagged = posts.iter().filter(|p| p.tags.iter().any(|t| t == tag));
     Value::map([
@@ -222,34 +178,8 @@ fn tag_item<'a>(
         ("count", Value::num(count)),
         (
             "posts",
-            Value::list(
-                newest_first(tagged)
-                    .into_iter()
-                    .map(|p| post_item(p, posts, threads, at)),
-            ),
+            Value::list(newest_first(tagged).into_iter().map(|p| post_item(p, at))),
         ),
-    ])
-}
-
-fn thread_item<'a>(thread: &Thread<'a>, posts: &'a [Post], at: &Where) -> Value<'a> {
-    let parts = content::thread_parts(posts, thread.id)
-        .into_iter()
-        .enumerate()
-        .map(|(i, post)| {
-            Value::map([
-                ("part", Value::num(i + 1)),
-                ("url", Value::text(path(at.posts, &post.slug))),
-                ("title", Value::text(post.title.as_str())),
-                ("date", Value::text(date(post))),
-            ])
-        });
-
-    Value::map([
-        ("url", Value::text(path(at.threads, thread.id))),
-        ("slug", Value::text(thread.id)),
-        ("title", Value::text(thread.title)),
-        ("description", Value::text(thread.description)),
-        ("parts", Value::list(parts)),
     ])
 }
 
@@ -265,10 +195,6 @@ mod tests {
             subtitle: None,
             pub_date: NaiveDate::parse_from_str("2024-01-02", "%Y-%m-%d").unwrap(),
             tags: tags.iter().map(|t| t.to_string()).collect(),
-            thread: None,
-            thread_order: None,
-            thread_title: None,
-            thread_description: None,
             description: None,
             draft: false,
             body: String::new(),
@@ -276,10 +202,9 @@ mod tests {
         }
     }
 
-    const ROUTES: [(&str, &str); 3] = [
+    const ROUTES: [(&str, &str); 2] = [
         ("posts", "blog/[slug]/index.html"),
         ("tags", "tag/[slug]/index.html"),
-        ("threads", "thread/[slug]/index.html"),
     ];
 
     fn site(posts: &[Post]) -> Value<'_> {

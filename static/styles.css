@@ -260,7 +260,7 @@ main {
   margin-top: 40px;
 }
 
-/* ---------- post list (home, /blog, /tag, /thread) ---------- */
+/* ---------- post list (home, /blog, /tag) ---------- */
 .post-list {
   display: flex;
   flex-direction: column;
@@ -293,24 +293,6 @@ main {
 .post-link {
   font-size: 15px;
   line-height: 1.45;
-}
-
-.thread-tag {
-  margin-top: 4px;
-  display: block;
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.thread-part-date {
-  margin-top: 4px;
-  display: block;
-  white-space: nowrap;
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  color: var(--muted);
 }
 
 /* A fixed date column costs 106px of a 342px phone, and monospace titles are
@@ -382,48 +364,6 @@ main {
   color: var(--muted);
 }
 
-.thread-box {
-  margin-top: 24px;
-  border: 1px solid var(--rule);
-  border-radius: 3px;
-  padding: 12px 16px;
-}
-
-.thread-box-title {
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  color: var(--muted);
-}
-
-.thread-box-nav {
-  margin-top: 8px;
-  display: flex;
-  justify-content: space-between;
-  gap: 24px;
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  color: var(--muted);
-}
-
-/* The first and last part of a thread have only one neighbour, and neither
-   link is written at all when there is nothing to link to. */
-.thread-box-nav:empty {
-  display: none;
-}
-
-.thread-prev::before {
-  content: "← ";
-}
-
-.thread-next {
-  margin-left: auto;
-  text-align: right;
-}
-
-.thread-next::after {
-  content: " →";
-}
-
 /* ---------- tags ---------- */
 .tag-cloud {
   display: flex;
@@ -452,27 +392,6 @@ main {
   margin-top: 20px;
 }
 
-/* ---------- thread page ---------- */
-.thread-title {
-  margin-top: 12px;
-  font-size: 24px;
-  font-weight: 500;
-  line-height: 1.2;
-  letter-spacing: -0.02em;
-}
-
-.thread-desc {
-  margin-top: 12px;
-  font-family: var(--font-serif);
-  font-size: 17px;
-  line-height: 1.6;
-  color: var(--muted);
-}
-
-.thread-list {
-  margin-top: 32px;
-}
-
 /* ---------- article prose ---------- */
 /* Everything from here down is the reading face. The chrome around it is
    monospace; the post itself is not. */
@@ -480,7 +399,7 @@ article {
   /* Consistent gap below the header regardless of what the prose opens with.
      A heading-first post already got this from `article h2`'s margin-top;
      this collapses with that (no doubling) and gives paragraph-first posts
-     — and posts preceded by a thread box — the same starting position. */
+     the same starting position. */
   margin-top: 40px;
   font-family: var(--font-serif);
   font-size: 17px;
@@ -671,8 +590,7 @@ math[display="block"] {
     font-size: 20px;
   }
 
-  .bio,
-  .thread-desc {
+  .bio {
     font-size: 19px;
   }
 
@@ -680,8 +598,7 @@ math[display="block"] {
     font-size: 16px;
   }
 
-  .page-title,
-  .thread-title {
+  .page-title {
     font-size: 28px;
   }
 

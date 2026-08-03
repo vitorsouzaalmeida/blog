@@ -103,10 +103,6 @@ fn scaffold(title: &str, today: NaiveDate) -> String {
          # draft: true                 -- built by `ssg dev`, left out of the site\n\
          # subtitle: A short italic subtitle\n\
          # description: Used for RSS and social meta\n\
-         # thread: some-thread-id\n\
-         # threadOrder: 1\n\
-         # threadTitle: Names the thread -- exactly one post per thread declares this\n\
-         # threadDescription: What the thread is about -- goes with threadTitle\n\
          ---\n\n"
     )
 }

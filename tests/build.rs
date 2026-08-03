@@ -71,8 +71,6 @@ fn the_url_surface_is_exactly_this() {
         "introduction-to-machine-code",
         "introduction-untyped-lc",
         "is-data-struct-about-memory",
-        "isolated-work-environment",
-        "obsidian-vault-internal-docs",
         "proving-naturals-infinity",
     ];
     let expected: BTreeSet<String> = [
@@ -84,7 +82,6 @@ fn the_url_surface_is_exactly_this() {
         "sitemap.xml",
         "robots.txt",
         "og_default.jpg",
-        "thread/isolated-env/index.html",
     ]
     .iter()
     .map(|s| s.to_string())

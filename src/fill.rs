@@ -16,10 +16,9 @@
 //!
 //! There is no conditional. A binding that resolves to `Nil`, or a `data-each`
 //! over an empty list, removes the element -- which is every condition this
-//! site had: an absent subtitle, a post outside a thread, the first or last
-//! part of one, the dev-only live-reload script. `data-when` is that same rule
-//! and nothing more, for a container that has no value of its own to bind: the
-//! thread box is present exactly when the post is part of a thread.
+//! site had: an absent subtitle, a post with no tags, the dev-only live-reload
+//! script. `data-when` is that same rule and nothing more, for a container that
+//! has no value of its own to bind: it is present exactly when its path is.
 //!
 //! Two rules carry the weight, as before. `data-slot` refuses to emit `Html`
 //! and `data-html` is the only marker that emits it unescaped, so
@@ -184,7 +183,7 @@ impl<'s, 'a> Scope<'s, 'a> {
     /// Resolves `a.b.c` against the innermost scope that defines `a`, so a
     /// `data-each` prototype can still see the page's fields. A segment reached
     /// through a `Nil` is `Nil` rather than an error, which is what lets
-    /// `data-attr-href="thread.url"` drop a threadless post's link.
+    /// `data-attr-href="a.url"` drop the link of an item that has no `a`.
     fn lookup(&self, path: &str) -> Option<&'s Value<'a>> {
         let (head, rest) = path.split_once('.').unwrap_or((path, ""));
         let found =
@@ -609,17 +608,17 @@ mod tests {
 
     #[test]
     fn data_when_keeps_or_drops_a_container_that_binds_nothing_else() {
-        let box_ = r#"<div class="thread-box" data-when="thread"><p>part of a thread</p></div>"#;
+        let box_ = r#"<div class="tag-box" data-when="tag"><p>filed under something</p></div>"#;
         assert_eq!(
             ok(
                 box_,
-                &root([("thread", Value::map([("id", Value::text("t"))]))])
+                &root([("tag", Value::map([("id", Value::text("t"))]))])
             ),
-            r#"<div class="thread-box"><p>part of a thread</p></div>"#
+            r#"<div class="tag-box"><p>filed under something</p></div>"#
         );
-        assert_eq!(ok(box_, &root([("thread", Value::Nil)])), "");
+        assert_eq!(ok(box_, &root([("tag", Value::Nil)])), "");
         // It never emits its value, so binding a map is not an error.
-        assert!(run(box_, &root([("thread", Value::list([Value::Num(1)]))])).is_ok());
+        assert!(run(box_, &root([("tag", Value::list([Value::Num(1)]))])).is_ok());
     }
 
     #[test]
@@ -698,8 +697,8 @@ mod tests {
 
     #[test]
     fn the_drop_rule_applies_inside_a_repeated_item() {
-        let item = |t: &'static str, thread: Value<'static>| {
-            Value::map([("t", Value::text(t)), ("thread", thread)])
+        let item = |t: &'static str, tag: Value<'static>| {
+            Value::map([("t", Value::text(t)), ("tag", tag)])
         };
         let v = root([(
             "xs",
@@ -710,7 +709,7 @@ mod tests {
         )]);
         assert_eq!(
             ok(
-                r#"<ul data-each="xs"><li data-slot="t"><a data-attr-href="thread.id"></a></li></ul>"#,
+                r#"<ul data-each="xs"><li data-slot="t"><a data-attr-href="tag.id"></a></li></ul>"#,
                 &v
             ),
             "<ul><li>a</li><li>b</li></ul>",
@@ -718,11 +717,11 @@ mod tests {
         );
         assert_eq!(
             ok(
-                r#"<ul data-each="xs"><li><a data-slot="thread.id"></a></li></ul>"#,
+                r#"<ul data-each="xs"><li><a data-slot="tag.id"></a></li></ul>"#,
                 &v
             ),
             "<ul><li><a>z</a></li><li></li></ul>",
-            "the threadless item drops only the anchor"
+            "the untagged item drops only the anchor"
         );
     }
 
@@ -730,20 +729,20 @@ mod tests {
     fn dotted_paths_walk_into_maps_and_stop_at_nil() {
         let v = root([
             (
-                "thread",
-                Value::map([("title", Value::text("t")), ("part", Value::num(2))]),
+                "tag",
+                Value::map([("name", Value::text("t")), ("count", Value::num(2))]),
             ),
             ("none", Value::Nil),
         ]);
         assert_eq!(
             ok(
-                r#"<p data-slot="thread.title"></p><i data-slot="thread.part"></i>"#,
+                r#"<p data-slot="tag.name"></p><i data-slot="tag.count"></i>"#,
                 &v
             ),
             "<p>t</p><i>2</i>"
         );
         // A typo under a real map is still an error...
-        assert!(run(r#"<p data-slot="thread.nope"></p>"#, &v).is_err());
+        assert!(run(r#"<p data-slot="tag.nope"></p>"#, &v).is_err());
         // ...but a path through a Nil is Nil, which drops the element.
         assert_eq!(ok(r#"<p data-slot="none.url"></p>"#, &v), "");
     }
