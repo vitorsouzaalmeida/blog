@@ -9,8 +9,25 @@ const URL_ATTRS: [&str; 5] = ["href", "src", "poster", "cite", "data"];
 
 const RAWTEXT: [&str; 4] = ["script", "style", "textarea", "title"];
 
+/// §13.1.2 void elements: they have no closing tag, so they have no content and
+/// cannot nest.
+const VOID: [&str; 14] = [
+    "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source",
+    "track", "wbr",
+];
+
 fn is_space(b: u8) -> bool {
     matches!(b, b' ' | b'\t' | b'\n' | b'\x0c' | b'\r')
+}
+
+fn named(name: &str, set: &[&str]) -> bool {
+    set.iter().any(|n| name.eq_ignore_ascii_case(n))
+}
+
+/// An element whose content is text, not markup: `<script>`, `<style>`,
+/// `<textarea>`, `<title>`.
+pub fn named_rawtext(name: &str) -> bool {
+    named(name, &RAWTEXT)
 }
 
 pub fn absolutize(html: &str, base: &str) -> String {
@@ -42,7 +59,7 @@ pub fn absolutize(html: &str, base: &str) -> String {
         out.push_str(&rewrite_tag(&tail[..end], base));
         rest = &tail[end..];
 
-        if !closing && RAWTEXT.iter().any(|r| name.eq_ignore_ascii_case(r)) {
+        if !closing && named(name, &RAWTEXT) {
             let stop = rawtext_end(rest, name);
             out.push_str(&rest[..stop]);
             rest = &rest[stop..];
@@ -52,7 +69,7 @@ pub fn absolutize(html: &str, base: &str) -> String {
     out
 }
 
-fn tag_name(tag: &str) -> Option<(&str, bool)> {
+pub fn tag_name(tag: &str) -> Option<(&str, bool)> {
     let after = tag.strip_prefix('<')?;
     let (body, closing) = match after.strip_prefix('/') {
         Some(body) => (body, true),
@@ -67,7 +84,7 @@ fn tag_name(tag: &str) -> Option<(&str, bool)> {
     Some((&body[..end], closing))
 }
 
-fn tag_end(tag: &str) -> usize {
+pub fn tag_end(tag: &str) -> usize {
     let bytes = tag.as_bytes();
     let mut quote = 0u8;
     for (i, &b) in bytes.iter().enumerate().skip(1) {
@@ -93,12 +110,16 @@ fn rawtext_end(s: &str, name: &str) -> usize {
         .map_or(s.len(), |(i, _)| i)
 }
 
-struct Attribute<'a> {
-    name: &'a str,
-    value: Option<(usize, usize)>,
+pub struct Attribute<'a> {
+    pub name: &'a str,
+    /// Byte span of the value inside its quotes, relative to the tag.
+    pub value: Option<(usize, usize)>,
+    /// Byte span of the whole `name="value"`, relative to the tag. `fill`
+    /// deletes this range to strip a marker from the output.
+    pub span: (usize, usize),
 }
 
-fn attributes(tag: &str) -> Vec<Attribute<'_>> {
+pub fn attributes(tag: &str) -> Vec<Attribute<'_>> {
     let bytes = tag.as_bytes();
     let mut attrs = Vec::new();
     let mut i = 1;
@@ -159,10 +180,111 @@ fn attributes(tag: &str) -> Vec<Attribute<'_>> {
             _ => None,
         };
         if !name.is_empty() {
-            attrs.push(Attribute { name, value });
+            attrs.push(Attribute {
+                name,
+                value,
+                span: (name_start, i),
+            });
         }
     }
     attrs
+}
+
+/// Where an element begins, where its content ends, and where it ends. A void
+/// or self-closing element has no content, so all three collapse to the byte
+/// after `>`.
+#[derive(Debug, PartialEq, Eq)]
+pub struct Extent {
+    pub open_end: usize,
+    pub content_end: usize,
+    pub end: usize,
+}
+
+fn self_closing(tag: &str) -> bool {
+    tag.strip_suffix('>')
+        .unwrap_or(tag)
+        .trim_end()
+        .ends_with('/')
+}
+
+fn close_len(s: &str, name: &str) -> usize {
+    match tag_name(s) {
+        Some((n, true)) if n.eq_ignore_ascii_case(name) => tag_end(s),
+        _ => 0,
+    }
+}
+
+/// The extent of the element whose opening tag starts at `at`, found by
+/// counting depth over same-named tags. `None` if `at` is not an opening tag or
+/// the element is never closed.
+pub fn extent(src: &str, at: usize) -> Option<Extent> {
+    let tail = src.get(at..)?;
+    let (name, closing) = tag_name(tail)?;
+    if closing {
+        return None;
+    }
+    let open_end = at + tag_end(tail);
+    let empty = Extent {
+        open_end,
+        content_end: open_end,
+        end: open_end,
+    };
+
+    if named(name, &VOID) || self_closing(&src[at..open_end]) {
+        return Some(empty);
+    }
+    if named(name, &RAWTEXT) {
+        let content_end = open_end + rawtext_end(&src[open_end..], name);
+        return Some(Extent {
+            open_end,
+            content_end,
+            end: content_end + close_len(&src[content_end..], name),
+        });
+    }
+
+    let mut i = open_end;
+    let mut depth = 1usize;
+    while let Some(lt) = src[i..].find('<') {
+        let at = i + lt;
+        let tail = &src[at..];
+
+        if tail.starts_with("<!--") {
+            i = at + tail[4..].find("-->").map_or(tail.len(), |k| 4 + k + 3);
+            continue;
+        }
+        if tail.starts_with("<!") || tail.starts_with("<?") {
+            i = at + tail.find('>').map_or(tail.len(), |k| k + 1);
+            continue;
+        }
+        let Some((n, close)) = tag_name(tail) else {
+            i = at + 1;
+            continue;
+        };
+        let end = at + tag_end(tail);
+
+        if n.eq_ignore_ascii_case(name) {
+            match close {
+                true => {
+                    depth -= 1;
+                    if depth == 0 {
+                        return Some(Extent {
+                            open_end,
+                            content_end: at,
+                            end,
+                        });
+                    }
+                }
+                false if !self_closing(&src[at..end]) => depth += 1,
+                false => {}
+            }
+        }
+
+        i = match !close && named(n, &RAWTEXT) {
+            true => end + rawtext_end(&src[end..], n),
+            false => end,
+        };
+    }
+    None
 }
 
 fn is_root_relative(value: &str) -> bool {
@@ -172,7 +294,7 @@ fn is_root_relative(value: &str) -> bool {
 fn rewrite_tag<'a>(tag: &'a str, base: &str) -> Cow<'a, str> {
     let insert_at: Vec<usize> = attributes(tag)
         .iter()
-        .filter(|a| URL_ATTRS.iter().any(|u| a.name.eq_ignore_ascii_case(u)))
+        .filter(|a| named(a.name, &URL_ATTRS))
         .filter_map(|a| a.value)
         .filter(|&(start, end)| is_root_relative(&tag[start..end]))
         .map(|(start, _)| start)
@@ -286,6 +408,81 @@ mod tests {
             abs(r#"<a title="a > b" href="/x">t</a>"#),
             format!(r#"<a title="a > b" href="{BASE}/x">t</a>"#)
         );
+    }
+
+    /// The source between an element's `>` and its matching `</`.
+    fn content(src: &str) -> &str {
+        let e = extent(src, src.find('<').unwrap()).unwrap();
+        &src[e.open_end..e.content_end]
+    }
+
+    #[test]
+    fn extent_finds_the_matching_close_not_the_first_one() {
+        assert_eq!(
+            content("<ul><li>a</li><li>b</li></ul>"),
+            "<li>a</li><li>b</li>"
+        );
+        assert_eq!(content("<div><div>in</div></div>"), "<div>in</div>");
+        assert_eq!(content("<p>plain</p>"), "plain");
+    }
+
+    #[test]
+    fn extent_consumes_the_close_tag() {
+        let src = "<p>x</p>tail";
+        assert_eq!(&src[extent(src, 0).unwrap().end..], "tail");
+    }
+
+    #[test]
+    fn a_void_or_self_closing_element_has_no_content() {
+        for src in ["<meta name=\"a\" />", "<br>", "<img src=\"/x\">", "<hr/>"] {
+            let e = extent(src, 0).unwrap();
+            assert_eq!(e.open_end, e.content_end, "for {src:?}");
+            assert_eq!(e.end, src.len(), "for {src:?}");
+        }
+        // A trailing slash inside an attribute value does not self-close a tag.
+        assert_eq!(content("<a href=\"/blog/\">t</a>"), "t");
+    }
+
+    #[test]
+    fn a_tag_inside_rawtext_does_not_count_toward_depth() {
+        // The inline theme script contains braces and quotes, and `title` shows
+        // up in both the head and the templates.
+        assert_eq!(
+            content("<script>var a = '</div>';</script>"),
+            "var a = '</div>';"
+        );
+        assert_eq!(content("<title>a > b</title>"), "a > b");
+        assert_eq!(
+            content("<div><script>'<div>'</script></div>"),
+            "<script>'<div>'</script>"
+        );
+    }
+
+    #[test]
+    fn extent_ignores_comments_and_declarations() {
+        assert_eq!(content("<div><!-- </div> -->x</div>"), "<!-- </div> -->x");
+    }
+
+    #[test]
+    fn an_unclosed_element_has_no_extent() {
+        assert_eq!(extent("<div>x", 0), None);
+        assert_eq!(
+            extent("</div>", 0),
+            None,
+            "a close tag is not an opening tag"
+        );
+    }
+
+    #[test]
+    fn attribute_spans_cover_the_whole_pair() {
+        let tag = r#"<a data-slot="title" href="/x">"#;
+        let attrs = attributes(tag);
+        let span = |n: &str| {
+            let a = attrs.iter().find(|a| a.name == n).unwrap();
+            &tag[a.span.0..a.span.1]
+        };
+        assert_eq!(span("data-slot"), r#"data-slot="title""#);
+        assert_eq!(span("href"), r#"href="/x""#);
     }
 
     #[test]

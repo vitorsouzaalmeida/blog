@@ -321,7 +321,7 @@ fn scan(src: &str) -> impl Iterator<Item = (Token<'_>, usize)> {
     .map(|(pair, _)| pair)
 }
 
-fn tokenize(src: &str) -> impl Iterator<Item = Token<'_>> {
+pub fn tokenize(src: &str) -> impl Iterator<Item = Token<'_>> {
     scan(src).map(|(t, _)| t)
 }
 
@@ -565,12 +565,10 @@ mod tests {
 
     #[test]
     fn tokenizing_the_real_stylesheets_round_trips() {
-        for path in [
-            "static/styles.css",
-            "static/fonts/fonts.css",
-            "static/highlight.css",
-        ] {
-            let css = std::fs::read_to_string(path).unwrap();
+        // Driven by the const so this can never drift from what the build inlines.
+        for name in crate::disk::STYLESHEETS {
+            let path = format!("static/{name}");
+            let css = std::fs::read_to_string(&path).unwrap();
             let out: String = tokenize(&css).map(|t| t.raw().to_string()).collect();
             assert_eq!(out, css, "{path} did not round-trip");
             assert_eq!(

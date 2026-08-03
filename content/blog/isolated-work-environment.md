@@ -4,6 +4,8 @@ pubDate: 2026-06-03
 tags:
   - code
 thread: isolated-env
+threadTitle: isolated work environment
+threadDescription: Building a disposable, isolated Linux environment and to work.
 ---
 
 ### A separate Linux user

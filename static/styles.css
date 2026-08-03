@@ -8,6 +8,11 @@
   --accent: #b06a3d; /* links, hover, emphasis */
   --rule: #e2ddd1; /* hairline borders       */
 
+  /* Code. Everything else in a block inherits --ink; see highlight.css. */
+  --code-string: #5c7148; /* strings, chars, numbers */
+  --code-comment: #a8542c; /* comments, deliberately loud */
+  --code-name: #6b5b95; /* constants, definition names */
+
   --font-serif: "Newsreader", Georgia, serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
@@ -19,6 +24,17 @@
   --muted: #9c968a;
   --accent: #c8946a;
   --rule: #332f29;
+
+  --code-string: #a3bd83;
+  --code-comment: #e0996a;
+  --code-name: #b3a2d8;
+}
+
+/* Cross-document view transitions, paired with the speculation rules in
+   `_layout.html`: the next page arrives already rendered, and the navigation to
+   it is not a flash. Both cost nothing to ship. */
+@view-transition {
+  navigation: auto;
 }
 
 /* ---------- reset ---------- */
@@ -62,6 +78,21 @@ ol {
   list-style: none;
 }
 
+/* Column width and footer layout are the only things that vary by kind of
+   page, and they vary together, so `<body>` carries the kind and the rest is
+   here rather than in a template. */
+.home main,
+.home .site-footer {
+  max-width: 760px;
+}
+
+.page main,
+.page .site-footer,
+.post main,
+.post .site-footer {
+  max-width: 640px;
+}
+
 main {
   flex: 1;
   width: 100%;
@@ -71,6 +102,10 @@ main {
 
 /* ---------- footer ---------- */
 .site-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
   width: 100%;
   margin-inline: auto;
   margin-top: 48px;
@@ -83,33 +118,27 @@ main {
   color: var(--muted);
 }
 
-.footer-centered {
-  display: flex;
+.home .site-footer {
   flex-direction: column;
   align-items: center;
   gap: 12px;
   padding-block: 8px;
 }
 
-.footer-split {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+/* The nav reads first on the home page and last everywhere else. */
+.home .footer-meta {
+  order: 2;
 }
 
 .footer-nav {
   display: flex;
   flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 18px;
 }
 
-.footer-centered .footer-nav {
+.home .footer-nav {
   justify-content: center;
-}
-
-.footer-nav-end {
-  justify-content: flex-end;
 }
 
 .footer-meta {
@@ -121,6 +150,11 @@ main {
 @media (max-width: 768px) {
   .mobile-hidden {
     display: none;
+  }
+
+  /* The home page's footer has room for the full nav. */
+  .home .mobile-hidden {
+    display: list-item;
   }
 }
 
@@ -273,9 +307,13 @@ main {
   padding-block: 13px;
 }
 
+/* Wide enough for the whole date -- 14 monospace characters at 11px with the
+   letter-spacing below come to ~102px -- and `nowrap` so it can never break
+   across two lines whatever font actually loads. */
 .post-date {
   flex-shrink: 0;
-  width: 86px;
+  width: 106px;
+  white-space: nowrap;
   font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: 0.06em;
@@ -305,6 +343,7 @@ main {
 .thread-part-date {
   margin-top: 4px;
   display: block;
+  white-space: nowrap;
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.06em;
@@ -332,6 +371,21 @@ main {
   font-size: 11px;
   letter-spacing: 0.06em;
   color: var(--muted);
+}
+
+/* The date, which shares this line with the tags: it may not break either. */
+.post-meta > span:first-child {
+  white-space: nowrap;
+}
+
+/* Separators, not content: only the stylesheet knows a tag has a neighbour,
+   and the list is absent entirely when the post has no tags. */
+.post-tags::before {
+  content: " — ";
+}
+
+.post-tags a + a::before {
+  content: " · ";
 }
 
 .post-title {
@@ -376,8 +430,23 @@ main {
   color: var(--muted);
 }
 
+/* The first and last part of a thread have only one neighbour, and neither
+   link is written at all when there is nothing to link to. */
+.thread-box-nav:empty {
+  display: none;
+}
+
+.thread-prev::before {
+  content: "← ";
+}
+
 .thread-next {
+  margin-left: auto;
   text-align: right;
+}
+
+.thread-next::after {
+  content: " →";
 }
 
 /* ---------- tags ---------- */
@@ -634,6 +703,6 @@ math[display="block"] {
   }
 }
 
-/* Syntax highlighting colors live in the generated /highlight.css (syntect,
-   light + [data-theme="dark"]). The code block frame is styled by `article pre`
-   above; `.hl` is the highlighted <pre>. */
+/* Syntax highlighting lives in highlight.css -- five classes drawing on the
+   --code-* palette above -- and is inlined after this file. The code block
+   frame is styled by `article pre` above; `.hl` is the highlighted <pre>. */

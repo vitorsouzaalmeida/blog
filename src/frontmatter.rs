@@ -32,10 +32,13 @@ pub enum Value<'a> {
     Seq(Vec<Cow<'a, str>>),
 }
 
+/// An empty `allowed` accepts any key, for a caller that validates them another
+/// way: a page's metadata block, where an unlisted key is a binding rather than
+/// a mistake.
 pub fn parse<'a>(front: &'a str, allowed: &[&str]) -> Result<Vec<(&'a str, Value<'a>)>, Error> {
     group(front)?
         .iter()
-        .filter_map(|g| match allowed.contains(&g.key) {
+        .filter_map(|g| match allowed.is_empty() || allowed.contains(&g.key) {
             false => Some(err(g.line, format!("unknown key {:?}", g.key))),
             true => match value_of(g) {
                 Ok(None) => None,

@@ -1,6 +1,5 @@
 use ab_glyph::{Font, FontRef, GlyphId, PxScale, ScaleFont};
 
-use crate::config;
 use crate::content::Post;
 
 const REGULAR: &[u8] = include_bytes!("../assets/og-fonts/Merriweather-Regular.ttf");
@@ -142,7 +141,7 @@ pub fn render(fonts: &Fonts, post: &Post) -> Vec<u8> {
     draw_text(
         &mut img,
         &fonts.regular,
-        config::WEBSITE,
+        crate::WEBSITE,
         MARGIN,
         130.0,
         META_PX,
