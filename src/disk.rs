@@ -2,10 +2,10 @@ use std::fs;
 use std::io::{Error, ErrorKind, Result};
 use std::path::{Path, PathBuf};
 
-use crate::assets;
 use crate::content::{self, Post};
-use crate::highlight::Highlighter;
-use crate::markdown;
+
+/// Concatenated and inlined into every page, in cascade order.
+pub const STYLESHEETS: [&str; 3] = ["fonts/fonts.css", "styles.css", "highlight.css"];
 
 #[derive(Debug)]
 pub struct Asset {
@@ -17,15 +17,16 @@ pub struct Asset {
 pub struct Content {
     pub posts: Vec<Post>,
     pub assets: Vec<Asset>,
-    pub css: String,
-    pub script: String,
+    /// Kept per file so a syntax error can name the file it is in.
+    pub stylesheets: Vec<(&'static str, String)>,
+    pub templates: Vec<(String, String)>,
 }
 
 fn invalid(path: &Path, msg: impl std::fmt::Display) -> Error {
     Error::new(ErrorKind::InvalidData, format!("{}: {msg}", path.display()))
 }
 
-fn load_posts(dir: &Path, hl: &Highlighter) -> Result<Vec<Post>> {
+fn load_posts(dir: &Path) -> Result<Vec<Post>> {
     let mut paths: Vec<PathBuf> = fs::read_dir(dir)
         .map_err(|e| invalid(dir, format!("cannot read content directory ({e})")))?
         .filter_map(|e| e.ok())
@@ -34,7 +35,7 @@ fn load_posts(dir: &Path, hl: &Highlighter) -> Result<Vec<Post>> {
         .collect();
     paths.sort();
 
-    let posts = paths
+    paths
         .iter()
         .map(|path| {
             let raw = fs::read_to_string(path)?;
@@ -44,29 +45,30 @@ fn load_posts(dir: &Path, hl: &Highlighter) -> Result<Vec<Post>> {
                 .ok_or_else(|| invalid(path, "no filename"))?;
             content::parse(&raw, &slug).map_err(|e| invalid(path, e))
         })
-        .collect::<Result<Vec<Post>>>()?;
-
-    Ok(markdown::render_posts(posts, hl))
+        .collect()
 }
 
-fn concat(dir: &Path, names: &[&str], sep: &str) -> Result<String> {
-    let parts = names
+fn read_all(dir: &Path, names: &[&'static str]) -> Result<Vec<(&'static str, String)>> {
+    names
         .iter()
         .map(|name| {
             let path = dir.join(name);
-            fs::read_to_string(&path).map_err(|e| invalid(&path, e))
+            fs::read_to_string(&path)
+                .map(|source| (*name, source))
+                .map_err(|e| invalid(&path, e))
         })
-        .collect::<Result<Vec<String>>>()?;
-    Ok(parts.join(sep))
+        .collect()
 }
 
+/// Stylesheets are inlined into every page, so they are not also copied out.
 fn is_inlined(rel: &Path) -> bool {
-    let rel = rel.to_string_lossy().replace('\\', "/");
-    assets::STYLESHEETS.contains(&rel.as_str()) || assets::SCRIPTS.contains(&rel.as_str())
+    STYLESHEETS.contains(&slashed(rel).as_str())
 }
 
-fn list_assets(dir: &Path) -> Result<Vec<Asset>> {
-    fn walk(dir: &Path, prefix: &Path, into: &mut Vec<Asset>) -> Result<()> {
+/// Every file under `dir`, as `(path relative to dir, path on disk)`, sorted so
+/// the build is deterministic.
+pub fn list_files(dir: &Path) -> Result<Vec<(PathBuf, PathBuf)>> {
+    fn walk(dir: &Path, prefix: &Path, into: &mut Vec<(PathBuf, PathBuf)>) -> Result<()> {
         let mut entries: Vec<PathBuf> = fs::read_dir(dir)?
             .filter_map(|e| e.ok())
             .map(|e| e.path())
@@ -79,27 +81,54 @@ fn list_assets(dir: &Path) -> Result<Vec<Asset>> {
             let rel = prefix.join(name);
             if path.is_dir() {
                 walk(&path, &rel, into)?;
-            } else if !is_inlined(&rel) {
-                into.push(Asset { rel, src: path });
+            } else {
+                into.push((rel, path));
             }
         }
         Ok(())
     }
 
-    let mut assets = Vec::new();
+    let mut files = Vec::new();
     if dir.is_dir() {
-        walk(dir, Path::new(""), &mut assets)?;
+        walk(dir, Path::new(""), &mut files)?;
     }
-    Ok(assets)
+    Ok(files)
 }
 
-pub fn load(root: &Path, hl: &Highlighter) -> Result<Content> {
+fn list_assets(dir: &Path) -> Result<Vec<Asset>> {
+    Ok(list_files(dir)?
+        .into_iter()
+        .filter(|(rel, _)| !is_inlined(rel))
+        .map(|(rel, src)| Asset { rel, src })
+        .collect())
+}
+
+fn slashed(rel: &Path) -> String {
+    rel.to_string_lossy().replace('\\', "/")
+}
+
+/// Route templates, as `(path relative to templates/, source)`. A template's
+/// final newline is not part of its output -- it is an artifact of the file
+/// ending in one -- so it is stripped here rather than in every template.
+fn load_templates(dir: &Path) -> Result<Vec<(String, String)>> {
+    list_files(dir)?
+        .into_iter()
+        .filter(|(rel, _)| rel.extension().is_some_and(|e| e == "html"))
+        .map(|(rel, src)| {
+            let source = fs::read_to_string(&src).map_err(|e| invalid(&src, e))?;
+            let trimmed = source.strip_suffix('\n').unwrap_or(&source).to_string();
+            Ok((slashed(&rel), trimmed))
+        })
+        .collect()
+}
+
+pub fn load(root: &Path) -> Result<Content> {
     let static_dir = root.join("static");
     Ok(Content {
-        posts: load_posts(&root.join("content/blog"), hl)?,
+        posts: load_posts(&root.join("content/blog"))?,
         assets: list_assets(&static_dir)?,
-        css: concat(&static_dir, &assets::STYLESHEETS, "\n")?,
-        script: concat(&static_dir, &assets::SCRIPTS, ";\n")?,
+        stylesheets: read_all(&static_dir, &STYLESHEETS)?,
+        templates: load_templates(&root.join("templates"))?,
     })
 }
 

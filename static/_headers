@@ -9,11 +9,6 @@
 /fonts/*
   Cache-Control: public, max-age=31536000, immutable
 
-# The bundle name embeds a hash of its contents (see assets::script_path), so a
-# new htmx arrives at a new URL and this can never go stale.
-/vendor/*
-  Cache-Control: public, max-age=31536000, immutable
-
 # Post media: not content-addressed, so a month rather than a year.
 /introbigo/*
   Cache-Control: public, max-age=2592000

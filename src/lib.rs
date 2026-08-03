@@ -1,111 +1,109 @@
-pub mod assets;
-pub mod config;
+pub mod check;
 pub mod content;
 pub mod css;
-pub mod date;
 pub mod dev;
 pub mod disk;
 pub mod feeds;
+pub mod fill;
 pub mod frontmatter;
 pub mod highlight;
 pub mod html;
 pub mod markdown;
+pub mod model;
 pub mod og;
-pub mod render;
-pub mod threads;
+pub mod routes;
 pub mod xml;
 
 use std::io::Result;
 use std::path::Path;
 
-use config::Ctx;
 use content::Post;
-use highlight::Highlighter;
-use threads::THREADS;
+
+pub const TITLE: &str = "vitor s. almeida";
+pub const WEBSITE: &str = "https://vitorsalmeida.com";
+pub const DESCRIPTION: &str =
+    "A dedicated space to share part of me. You will find some articles, essays and some links";
+pub const AUTHOR: &str = "vitor s. almeida";
+pub const BIRTH_YEAR: i32 = 2004;
+
+#[derive(Clone, Copy, Debug)]
+pub struct Ctx {
+    pub year: i32,
+    pub live_reload: bool,
+    pub og_images: bool,
+    /// Unpublished posts: visible while you write them, absent from the site.
+    pub drafts: bool,
+}
+
+impl Ctx {
+    pub fn prod(year: i32) -> Self {
+        Ctx {
+            year,
+            live_reload: false,
+            og_images: true,
+            drafts: false,
+        }
+    }
+
+    pub fn dev(year: i32) -> Self {
+        Ctx {
+            year,
+            live_reload: true,
+            og_images: false,
+            drafts: true,
+        }
+    }
+}
 
 pub fn build(root: &Path, dist: &Path, ctx: Ctx) -> Result<()> {
-    let content = disk::load(root, &Highlighter::new())?;
-    let posts = &content.posts;
-    let all: Vec<&Post> = posts.iter().collect();
-    let tm = threads::thread_map(posts);
-    let tag_counts = content::tag_counts(posts);
-    let tags: Vec<&str> = tag_counts.iter().map(|(t, _)| *t).collect();
-    let thread_ids: Vec<&str> = THREADS.iter().map(|t| t.id).collect();
+    let content = disk::load(root)?;
+    let published: Vec<Post> = content
+        .posts
+        .into_iter()
+        .filter(|p| ctx.drafts || !p.draft)
+        .collect();
+    let posts = &published;
 
-    css::check(&content.css).map_err(|(err, at)| stylesheet_error(&content.css, err, at))?;
-    let css = assets::minify(&content.css);
-    let highlight = assets::minify(&highlight::highlight_css(&highlight::used_classes(posts)));
-    let script_path = assets::script_path(&content.script);
-    let page = assets::Page {
-        css: &css,
-        highlight: &highlight,
-        script: &script_path,
-    };
+    content.stylesheets.iter().try_for_each(|(name, source)| {
+        css::check(source).map_err(|(err, at)| stylesheet_error(name, source, err, at))
+    })?;
+    let css = css::minify(
+        &content
+            .stylesheets
+            .iter()
+            .map(|(_, source)| source.as_str())
+            .collect::<Vec<&str>>()
+            .join("\n"),
+    );
+    let templates = routes::load(&content.templates).map_err(invalid_data)?;
+    let collections = routes::collections(&templates).map_err(invalid_data)?;
+    let site = model::build(posts, &css, ctx, &collections).map_err(invalid_data)?;
 
     disk::clean(dist)?;
 
-    disk::write(dist, "index.html", render::home_page(ctx, page, posts, &tm))?;
-    disk::write(
-        dist,
-        "blog/index.html",
-        render::blog_index_page(ctx, page, posts, &tm),
-    )?;
-    disk::write(
-        dist,
-        "tags/index.html",
-        render::tags_page(ctx, page, &tag_counts),
-    )?;
-    disk::write(dist, script_path.trim_start_matches('/'), &content.script)?;
+    let written: Vec<String> = templates
+        .routes
+        .iter()
+        .map(|route| write_pages(route, &templates, &site, dist))
+        .collect::<Result<Vec<Vec<String>>>>()?
+        .concat();
+
+    let all: Vec<&Post> = posts.iter().collect();
     disk::write(dist, "rss.xml", feeds::rss(&all))?;
-    disk::write(
-        dist,
-        "sitemap.xml",
-        feeds::sitemap(&all, &tags, &thread_ids),
-    )?;
+    disk::write(dist, "sitemap.xml", feeds::sitemap(&written))?;
 
-    for post in posts {
-        let nav = threads::thread_nav(post, posts);
-        disk::write(
-            dist,
-            format!("blog/{}/index.html", post.slug),
-            render::post_page(ctx, page, post, nav.as_ref()),
-        )?;
-    }
-
-    for tag in &tags {
-        let tagged: Vec<&Post> = posts.iter().filter(|p| has_tag(p, tag)).collect();
-        let dir = render::tag_path(tag);
-        disk::write(
-            dist,
-            format!("tag/{dir}/index.html"),
-            render::tag_page(ctx, page, tag, &tagged, &tm),
-        )?;
-        disk::write(
-            dist,
-            format!("tag/{dir}/partial.html"),
-            render::tag_partial(&tagged, &tm),
-        )?;
-    }
-
-    for thread in THREADS {
-        let parts = threads::thread_parts(posts, thread.id);
-        if !parts.is_empty() {
-            disk::write(
-                dist,
-                format!("thread/{}/index.html", thread.id),
-                render::thread_page(ctx, page, thread, &parts),
-            )?;
-        }
+    // The stylesheet is inlined into every page, so the dev server needs a copy
+    // it can hand back on its own to swap one in place (`dev::CSS_PATH`).
+    if ctx.live_reload {
+        disk::write(dist, dev::CSS_PATH.trim_start_matches('/'), &css)?;
     }
 
     if ctx.og_images {
         let fonts = og::Fonts::embedded();
         for post in posts {
-            disk::write(
-                dist,
-                format!("blog/{}/og.png", post.slug),
-                og::render(&fonts, post),
-            )?;
+            let url = model::url_of(&collections, "posts", &post.slug).map_err(invalid_data)?;
+            let rel = model::og_image(&url);
+            disk::write(dist, rel.trim_start_matches('/'), og::render(&fonts, post))?;
         }
     }
 
@@ -116,14 +114,40 @@ pub fn build(root: &Path, dist: &Path, ctx: Ctx) -> Result<()> {
     Ok(())
 }
 
-fn stylesheet_error(css: &str, err: css::Error, at: usize) -> std::io::Error {
-    let line = css[..at].lines().count().max(1);
-    std::io::Error::new(
-        std::io::ErrorKind::InvalidData,
-        format!("stylesheet: {err} at line {line} of the concatenated CSS"),
-    )
+/// Writes every page one route expands to and answers with the canonical URL of
+/// each, which is what the sitemap lists -- so it can neither miss a page nor
+/// name one that was never written. A route emitted without the layout is a
+/// fragment rather than a page, and is not a URL to advertise.
+fn write_pages(
+    route: &routes::Route,
+    templates: &routes::Templates,
+    site: &fill::Value,
+    dist: &Path,
+) -> Result<Vec<String>> {
+    let urls = routes::expand(route, site)
+        .map_err(invalid_data)?
+        .iter()
+        .map(|page| {
+            let html = routes::render(route, templates, site, page).map_err(invalid_data)?;
+            disk::write(dist, &page.out, html)?;
+            Ok(routes::canonical(&page.out))
+        })
+        .collect::<Result<Vec<String>>>()?;
+
+    Ok(match route.layout {
+        true => urls,
+        false => Vec::new(),
+    })
 }
 
-fn has_tag(post: &Post, tag: &str) -> bool {
-    post.tags.iter().any(|t| t == tag)
+fn invalid_data(msg: String) -> std::io::Error {
+    std::io::Error::new(std::io::ErrorKind::InvalidData, msg)
+}
+
+fn stylesheet_error(name: &str, css: &str, err: css::Error, at: usize) -> std::io::Error {
+    let line = fill::line_at(css, at);
+    std::io::Error::new(
+        std::io::ErrorKind::InvalidData,
+        format!("stylesheet: {err} at line {line} of {name}"),
+    )
 }

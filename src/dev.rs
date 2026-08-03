@@ -7,7 +7,21 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, SystemTime};
 
-use crate::config::Ctx;
+use crate::Ctx;
+
+/// Where the dev build leaves a copy of the inlined stylesheet, so a change to
+/// one can be swapped into the open page instead of reloading it.
+pub const CSS_PATH: &str = "/__css";
+
+/// Injected into every page by a dev build, and into the build-failure page.
+pub fn live_reload() -> String {
+    format!(
+        "(function(){{try{{new EventSource('/__livereload').onmessage=function(e){{\
+         if(e.data==='css'){{fetch('{CSS_PATH}').then(function(r){{return r.text()}})\
+         .then(function(t){{document.querySelector('style').textContent=t}})}}\
+         else{{location.reload()}}}}}}catch(e){{}}}})();"
+    )
+}
 
 #[derive(Debug)]
 pub enum Resolved {
@@ -74,7 +88,31 @@ fn write_head(stream: &mut TcpStream, status: &str, ctype: &str, len: usize) -> 
     stream.write_all(head.as_bytes())
 }
 
-fn handle(mut stream: TcpStream, dist: &Path, clients: Arc<Mutex<Vec<TcpStream>>>) -> Result<()> {
+/// What the server threads share: who is listening for a reload, and why the
+/// last build failed, if it did.
+#[derive(Default)]
+struct State {
+    clients: Mutex<Vec<TcpStream>>,
+    error: Mutex<Option<String>>,
+}
+
+/// Serving the error rather than printing it: otherwise the last good `dist/`
+/// keeps being served and you edit against a stale page without noticing.
+fn error_page(msg: &str) -> String {
+    format!(
+        "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">\
+         <title>build failed</title><style>\
+         body{{margin:0;padding:40px;background:#1f1d1a;color:#e8e4da;\
+         font:14px/1.6 ui-monospace,monospace}}\
+         h1{{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#c8946a}}\
+         pre{{margin-top:20px;white-space:pre-wrap}}</style></head>\
+         <body><h1>build failed</h1><pre>{}</pre><script>{}</script></body></html>",
+        crate::fill::esc(msg),
+        live_reload()
+    )
+}
+
+fn handle(mut stream: TcpStream, dist: &Path, state: &State) -> Result<()> {
     let mut reader = BufReader::new(stream.try_clone()?);
     let mut line = String::new();
     reader.read_line(&mut line)?;
@@ -85,8 +123,20 @@ fn handle(mut stream: TcpStream, dist: &Path, clients: Arc<Mutex<Vec<TcpStream>>
             b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nCache-Control: no-cache\r\nConnection: keep-alive\r\n\r\nretry: 1000\n\n",
         )?;
         stream.flush()?;
-        clients.lock().unwrap().push(stream);
+        state.clients.lock().unwrap().push(stream);
         return Ok(());
+    }
+
+    if let Some(err) = state.error.lock().unwrap().clone() {
+        let body = error_page(&err);
+        write_head(
+            &mut stream,
+            "500 Internal Server Error",
+            "text/html; charset=utf-8",
+            body.len(),
+        )?;
+        stream.write_all(body.as_bytes())?;
+        return stream.flush();
     }
 
     match resolve(dist, &path) {
@@ -115,62 +165,87 @@ fn handle(mut stream: TcpStream, dist: &Path, clients: Arc<Mutex<Vec<TcpStream>>
     stream.flush()
 }
 
-fn newest(dir: &Path) -> SystemTime {
+/// The most recent modification under `dir` among the files `want` accepts.
+fn newest(dir: &Path, want: &dyn Fn(&Path) -> bool) -> SystemTime {
     fs::read_dir(dir)
         .into_iter()
         .flatten()
         .flatten()
         .map(|e| {
-            let p = e.path();
-            if p.is_dir() {
-                newest(&p)
-            } else {
-                e.metadata()
+            let path = e.path();
+            match (path.is_dir(), want(&path)) {
+                (true, _) => newest(&path, want),
+                (false, true) => e
+                    .metadata()
                     .and_then(|m| m.modified())
-                    .unwrap_or(SystemTime::UNIX_EPOCH)
+                    .unwrap_or(SystemTime::UNIX_EPOCH),
+                (false, false) => SystemTime::UNIX_EPOCH,
             }
         })
         .max()
         .unwrap_or(SystemTime::UNIX_EPOCH)
 }
 
-fn latest(dirs: &[PathBuf]) -> SystemTime {
+fn latest(dirs: &[PathBuf], want: &dyn Fn(&Path) -> bool) -> SystemTime {
     dirs.iter()
-        .map(|d| newest(d))
+        .map(|d| newest(d, want))
         .max()
         .unwrap_or(SystemTime::UNIX_EPOCH)
 }
 
-fn broadcast(clients: &Arc<Mutex<Vec<TcpStream>>>) {
-    clients.lock().unwrap().retain_mut(|s| {
-        s.write_all(b"data: reload\n\n")
+fn is_css(path: &Path) -> bool {
+    path.extension().is_some_and(|e| e == "css")
+}
+
+fn broadcast(state: &State, event: &str) {
+    let message = format!("data: {event}\n\n");
+    state.clients.lock().unwrap().retain_mut(|s| {
+        s.write_all(message.as_bytes())
             .and_then(|_| s.flush())
             .is_ok()
     });
 }
 
+/// Builds, and keeps the reason it could not; answers whether it worked.
+fn rebuild(root: &Path, dist: &Path, ctx: Ctx, state: &State) -> bool {
+    let result = crate::build(root, dist, ctx);
+    match &result {
+        Ok(()) => println!("rebuilt"),
+        Err(e) => eprintln!("build failed: {e}"),
+    }
+    let failure = result.err().map(|e| e.to_string());
+    let ok = failure.is_none();
+    *state.error.lock().unwrap() = failure;
+    ok
+}
+
 pub fn serve(root: &Path, dist: &Path, port: u16) -> Result<()> {
     let ctx = Ctx::dev(Local::now().year());
-    crate::build(root, dist, ctx)?;
-
-    let clients: Arc<Mutex<Vec<TcpStream>>> = Arc::new(Mutex::new(Vec::new()));
+    let state = Arc::new(State::default());
+    // A first build that fails still starts the server: the error is the page.
+    rebuild(root, dist, ctx, &state);
 
     {
-        let clients = clients.clone();
+        let state = state.clone();
         let (root, dist) = (root.to_path_buf(), dist.to_path_buf());
-        let dirs = [root.join("content"), root.join("static")];
+        let dirs = [
+            root.join("content"),
+            root.join("static"),
+            root.join("templates"),
+        ];
         thread::spawn(move || {
-            let mut last = latest(&dirs);
+            let mut last = latest(&dirs, &|_| true);
             loop {
                 thread::sleep(Duration::from_millis(250));
-                let now = latest(&dirs);
+                let now = latest(&dirs, &|_| true);
                 if now > last {
                     last = now;
-                    match crate::build(&root, &dist, ctx) {
-                        Ok(_) => println!("rebuilt"),
-                        Err(e) => eprintln!("rebuild failed: {e}"),
-                    }
-                    broadcast(&clients);
+                    let was_broken = state.error.lock().unwrap().is_some();
+                    let ok = rebuild(&root, &dist, ctx, &state);
+                    // A stylesheet on its own is swapped into the open page,
+                    // which keeps the scroll position mid-post.
+                    let css_only = ok && !was_broken && latest(&dirs, &is_css) == now;
+                    broadcast(&state, if css_only { "css" } else { "reload" });
                 }
             }
         });
@@ -180,9 +255,9 @@ pub fn serve(root: &Path, dist: &Path, port: u16) -> Result<()> {
     println!("dev server on http://localhost:{port} (watching for changes)");
     for stream in listener.incoming().flatten() {
         let dist = dist.to_path_buf();
-        let clients = clients.clone();
+        let state = state.clone();
         thread::spawn(move || {
-            let _ = handle(stream, &dist, clients);
+            let _ = handle(stream, &dist, &state);
         });
     }
     Ok(())

@@ -1,13 +1,12 @@
-A static site generator that turns Markdown into HTML, and HTMX for interactivity
+My blog!
 
-No Node, bundler, or framework because I don't want to run JavaScript on my computer, and you shouldn't either. I'm using a few crates to do the building and wrote a half-baked HTML and CSS parser, as well as an XML writer to handle only this project's needs. They're all based on its specifications.
-
-Development:
+No Node, bundler, or framework because I don't want to run JavaScript on my computer, and you shouldn't either.
 
 ```bash
-cargo run --release -- build
-cargo run -- dev
-cargo test
+cargo run --release -- build      # -> dist/
+cargo run -- dev                  # localhost:8788, live reload, drafts included
+cargo run -- new "Post title"     # scaffolds content/blog/post-title.md, opens $EDITOR
+cargo run --release -- check      # builds, then verifies links and class names
 ```
 
 Code is under [LICENSE](LICENSE); the posts in `content/` are under [LICENSE-posts](LICENSE-posts).

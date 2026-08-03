@@ -1,16 +1,22 @@
-use crate::date::Date;
+use chrono::NaiveDate;
+
 use crate::frontmatter::{self, Value};
+use crate::markdown;
 
 #[derive(Debug)]
 pub struct Post {
     pub slug: String,
     pub title: String,
     pub subtitle: Option<String>,
-    pub pub_date: Date,
+    pub pub_date: NaiveDate,
     pub tags: Vec<String>,
     pub thread: Option<String>,
     pub thread_order: Option<i64>,
+    pub thread_title: Option<String>,
+    pub thread_description: Option<String>,
     pub description: Option<String>,
+    /// Built in `dev`, skipped in `prod`: a post you are still writing.
+    pub draft: bool,
     pub body: String,
     pub html: String,
 }
@@ -21,14 +27,17 @@ impl Post {
     }
 }
 
-const KEYS: [&str; 7] = [
+const KEYS: [&str; 10] = [
     "title",
     "subtitle",
     "description",
+    "draft",
     "pubDate",
     "tags",
     "thread",
     "threadOrder",
+    "threadTitle",
+    "threadDescription",
 ];
 
 fn split_frontmatter(raw: &str) -> Result<(&str, &str), String> {
@@ -81,17 +90,123 @@ pub fn parse(raw: &str, slug: &str) -> Result<Post, String> {
         })
         .transpose()?;
 
+    let draft = match field("draft")? {
+        None => false,
+        Some("true") => true,
+        Some("false") => false,
+        Some(other) => return Err(format!("`draft` must be true or false, got {other:?}")),
+    };
+
+    let pub_date = {
+        let raw = field("pubDate")?.ok_or("missing `pubDate`")?;
+        NaiveDate::parse_from_str(raw, "%Y-%m-%d")
+            .map_err(|e| format!("invalid `pubDate` {raw:?}: {e}"))?
+    };
+
     Ok(Post {
         slug: slug.to_string(),
         title: field("title")?.ok_or("missing `title`")?.to_string(),
         subtitle: field("subtitle")?.map(str::to_string),
         description: field("description")?.map(str::to_string),
-        pub_date: Date::parse(field("pubDate")?.ok_or("missing `pubDate`")?)?,
+        pub_date,
         tags,
         thread: field("thread")?.map(str::to_string),
         thread_order,
+        thread_title: field("threadTitle")?.map(str::to_string),
+        thread_description: field("threadDescription")?.map(str::to_string),
+        draft,
+        // Rendered here rather than by a second pass over the loaded posts,
+        // which would mean constructing every `Post` with an `html` it does not
+        // have yet and overwriting it.
+        html: markdown::render(body),
         body: body.to_string(),
-        html: String::new(),
+    })
+}
+
+/// A series of posts. Threads are not declared anywhere central: a post joins
+/// one with `thread`, and exactly one post per thread carries the `threadTitle`
+/// and `threadDescription` that name it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Thread<'a> {
+    pub id: &'a str,
+    pub title: &'a str,
+    pub description: &'a str,
+}
+
+fn thread<'a>(posts: &'a [Post], id: &'a str) -> Result<Thread<'a>, String> {
+    let declared: Vec<&Post> = posts
+        .iter()
+        .filter(|p| p.thread.as_deref() == Some(id))
+        .filter(|p| p.thread_title.is_some() || p.thread_description.is_some())
+        .collect();
+
+    match declared.as_slice() {
+        [] => Err(format!(
+            "thread {id:?}: no post declares `threadTitle` and `threadDescription`; exactly one must"
+        )),
+        [p] => match (&p.thread_title, &p.thread_description) {
+            (Some(title), Some(description)) => Ok(Thread {
+                id,
+                title,
+                description,
+            }),
+            (None, _) => Err(format!("{}: `threadDescription` without `threadTitle`", p.slug)),
+            (_, None) => Err(format!("{}: `threadTitle` without `threadDescription`", p.slug)),
+        },
+        many => Err(format!(
+            "thread {id:?}: declared by {} posts ({}); exactly one must",
+            many.len(),
+            many.iter()
+                .map(|p| p.slug.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
+        )),
+    }
+}
+
+/// Every thread any post belongs to, ordered by id so the build is deterministic.
+pub fn threads(posts: &[Post]) -> Result<Vec<Thread<'_>>, String> {
+    posts
+        .iter()
+        .filter_map(|p| p.thread.as_deref())
+        .collect::<std::collections::BTreeSet<&str>>()
+        .into_iter()
+        .map(|id| thread(posts, id))
+        .collect()
+}
+
+pub fn thread_parts<'a>(posts: &'a [Post], id: &str) -> Vec<&'a Post> {
+    let mut parts: Vec<&Post> = posts
+        .iter()
+        .filter(|p| p.thread.as_deref() == Some(id))
+        .collect();
+    parts.sort_by_key(|p| (p.thread_order.unwrap_or(i64::MAX), p.pub_date));
+    parts
+}
+
+pub struct ThreadNav<'a> {
+    pub thread: Thread<'a>,
+    pub index: usize,
+    pub total: usize,
+    pub prev: Option<&'a Post>,
+    pub next: Option<&'a Post>,
+}
+
+pub fn thread_nav<'a>(
+    post: &Post,
+    posts: &'a [Post],
+    threads: &[Thread<'a>],
+) -> Option<ThreadNav<'a>> {
+    let id = post.thread.as_deref()?;
+    let thread = *threads.iter().find(|t| t.id == id)?;
+    let parts = thread_parts(posts, id);
+    let i = parts.iter().position(|p| p.slug == post.slug)?;
+    (parts.len() >= 2).then(|| ThreadNav {
+        thread,
+        index: i + 1,
+        total: parts.len(),
+        prev: i.checked_sub(1).and_then(|j| parts.get(j)).copied(),
+        next: parts.get(i + 1).copied(),
     })
 }
 
@@ -113,8 +228,8 @@ pub fn tag_counts(posts: &[Post]) -> Vec<(&str, usize)> {
 mod tests {
     use super::*;
 
-    fn date(s: &str) -> Date {
-        Date::parse(s).unwrap()
+    fn date(s: &str) -> NaiveDate {
+        NaiveDate::parse_from_str(s, "%Y-%m-%d").unwrap()
     }
 
     #[test]
@@ -157,13 +272,14 @@ mod tests {
     }
 
     #[test]
-    fn a_scaffolded_post_parses() {
-        let raw = "---\ntitle: My Post\npubDate: 2026-07-28\ntags:\n  - tag1\n# Optional frontmatter:\n# subtitle: A short italic subtitle\n# description: Used for RSS + social meta\n# thread: some-thread-id\n# threadOrder: 1\n---\n\nContent\n";
-        let p = parse(raw, "my-post").unwrap();
-        assert_eq!(p.title, "My Post");
-        assert_eq!(p.tags, ["tag1"]);
-        assert_eq!(p.subtitle, None);
-        assert_eq!(p.body, "Content\n");
+    fn a_draft_says_so_and_anything_but_a_boolean_is_an_error() {
+        let front = |extra: &str| format!("---\ntitle: X\npubDate: 2024-01-02\n{extra}---\nB\n");
+        assert!(!parse(&front(""), "x").unwrap().draft);
+        assert!(parse(&front("draft: true\n"), "x").unwrap().draft);
+        assert!(!parse(&front("draft: false\n"), "x").unwrap().draft);
+        assert!(parse(&front("draft: yes\n"), "x")
+            .unwrap_err()
+            .contains("true or false"));
     }
 
     #[test]
@@ -192,10 +308,94 @@ mod tests {
             tags: tags.iter().map(|t| t.to_string()).collect(),
             thread: None,
             thread_order: None,
+            thread_title: None,
+            thread_description: None,
             description: None,
+            draft: false,
             body: String::new(),
             html: String::new(),
         }
+    }
+
+    fn threaded(slug: &str, id: &str, names: Option<(&str, &str)>) -> Post {
+        Post {
+            thread: Some(id.into()),
+            thread_title: names.map(|(t, _)| t.into()),
+            thread_description: names.map(|(_, d)| d.into()),
+            ..tagged(slug, &[])
+        }
+    }
+
+    #[test]
+    fn a_thread_is_named_by_exactly_one_of_its_posts() {
+        let posts = [
+            threaded("a", "t", Some(("A Thread", "About things"))),
+            threaded("b", "t", None),
+        ];
+        assert_eq!(
+            threads(&posts).unwrap(),
+            [Thread {
+                id: "t",
+                title: "A Thread",
+                description: "About things"
+            }]
+        );
+    }
+
+    #[test]
+    fn a_thread_nobody_names_is_an_error_not_a_blank_heading() {
+        let posts = [threaded("a", "t", None), threaded("b", "t", None)];
+        let err = threads(&posts).unwrap_err();
+        assert!(err.contains("no post declares"), "got: {err}");
+    }
+
+    #[test]
+    fn two_posts_naming_the_same_thread_is_an_error() {
+        let posts = [
+            threaded("a", "t", Some(("One", "d"))),
+            threaded("b", "t", Some(("Two", "d"))),
+        ];
+        let err = threads(&posts).unwrap_err();
+        assert!(err.contains("declared by 2 posts"), "got: {err}");
+        assert!(err.contains("a, b"), "the error should name them: {err}");
+    }
+
+    #[test]
+    fn half_a_declaration_is_an_error() {
+        let posts = [Post {
+            thread_description: None,
+            ..threaded("a", "t", Some(("One", "d")))
+        }];
+        assert!(threads(&posts).unwrap_err().contains("without"));
+    }
+
+    #[test]
+    fn a_single_part_thread_places_no_posts() {
+        // One post is not a series, so it gets no "part 1 of 1" tag anywhere.
+        let posts = [threaded("a", "t", Some(("One", "d")))];
+        let ts = threads(&posts).unwrap();
+        assert!(thread_nav(&posts[0], &posts, &ts).is_none());
+        // ...but the thread page is still built, so the id must survive.
+        assert_eq!(ts.len(), 1);
+    }
+
+    #[test]
+    fn parts_order_by_thread_order_then_date() {
+        let ordered = |slug: &str, order: Option<i64>, date: &str| Post {
+            thread_order: order,
+            pub_date: self::date(date),
+            ..threaded(slug, "t", None)
+        };
+        let posts = [
+            ordered("c", None, "2024-03-01"),
+            ordered("a", Some(1), "2024-02-01"),
+            ordered("b", None, "2024-01-01"),
+        ];
+        let slugs: Vec<&str> = thread_parts(&posts, "t")
+            .iter()
+            .map(|p| p.slug.as_str())
+            .collect();
+        assert_eq!(slugs, ["a", "b", "c"]);
     }
 
     #[test]

@@ -1,14 +1,12 @@
 use std::borrow::Cow;
 use std::cmp::Reverse;
 
-use crate::config;
 use crate::content::Post;
 use crate::html;
-use crate::render::tag_path;
 use crate::xml::{self, Node};
 
 fn item<'a>(post: &'a Post) -> Node<'a> {
-    let url = format!("{}/blog/{}", config::WEBSITE, post.slug);
+    let url = format!("{}/blog/{}", crate::WEBSITE, post.slug);
     let head = [
         Node::line("title", post.title.as_str()),
         Node::line("link", url.clone()),
@@ -17,14 +15,19 @@ fn item<'a>(post: &'a Post) -> Node<'a> {
             [("isPermaLink", Cow::Borrowed("true"))],
             [Node::text(url)],
         ),
-        Node::line("pubDate", post.pub_date.rfc822()),
+        Node::line(
+            "pubDate",
+            post.pub_date
+                .format("%a, %d %b %Y 00:00:00 GMT")
+                .to_string(),
+        ),
     ];
 
     let description = post.summary().map(|s| Node::line("description", s));
     let body = Node::elem(
         "content:encoded",
         [],
-        [Node::cdata(html::absolutize(&post.html, config::WEBSITE))],
+        [Node::cdata(html::absolutize(&post.html, crate::WEBSITE))],
     );
     Node::tag("item", head.into_iter().chain(description).chain([body]))
 }
@@ -34,13 +37,13 @@ pub fn rss(posts: &[&Post]) -> String {
     ps.sort_by_key(|p| Reverse(p.pub_date));
 
     let head = [
-        Node::line("title", config::TITLE),
-        Node::line("description", config::DESCRIPTION),
-        Node::line("link", config::WEBSITE),
+        Node::line("title", crate::TITLE),
+        Node::line("description", crate::DESCRIPTION),
+        Node::line("link", crate::WEBSITE),
         Node::elem(
             "atom:link",
             [
-                ("href", Cow::Owned(format!("{}/rss.xml", config::WEBSITE))),
+                ("href", Cow::Owned(format!("{}/rss.xml", crate::WEBSITE))),
                 ("rel", Cow::Borrowed("self")),
                 ("type", Cow::Borrowed("application/rss+xml")),
             ],
@@ -66,15 +69,13 @@ pub fn rss(posts: &[&Post]) -> String {
     ))
 }
 
-pub fn sitemap(posts: &[&Post], tags: &[&str], thread_ids: &[&str]) -> String {
-    let site = config::WEBSITE;
-    let fixed = ["".to_string(), "blog/".to_string(), "tags/".to_string()];
-    let urls = fixed
-        .into_iter()
-        .chain(posts.iter().map(|p| format!("blog/{}/", p.slug)))
-        .chain(tags.iter().map(|t| format!("tag/{}/", tag_path(t))))
-        .chain(thread_ids.iter().map(|id| format!("thread/{id}/")))
-        .map(|rel| Node::tag("url", [Node::line("loc", format!("{site}/{rel}"))]));
+/// Takes the pages the build actually wrote, so the sitemap cannot list a URL
+/// that does not exist or miss one that does.
+pub fn sitemap(pages: &[String]) -> String {
+    let urls = pages.iter().map(|path| {
+        let loc = format!("{}{path}", crate::WEBSITE);
+        Node::tag("url", [Node::line("loc", loc)])
+    });
 
     xml::document(&Node::elem(
         "urlset",
@@ -89,18 +90,21 @@ pub fn sitemap(posts: &[&Post], tags: &[&str], thread_ids: &[&str]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::date::Date;
+    use chrono::NaiveDate;
 
     fn post(title: &str, summary: Option<&str>) -> Post {
         Post {
             slug: "s".into(),
             title: title.into(),
             subtitle: summary.map(str::to_string),
-            pub_date: Date::parse("2024-01-02").unwrap(),
+            pub_date: NaiveDate::parse_from_str("2024-01-02", "%Y-%m-%d").unwrap(),
             tags: Vec::new(),
             thread: None,
             thread_order: None,
+            thread_title: None,
+            thread_description: None,
             description: None,
+            draft: false,
             body: String::new(),
             html: "<p>hi</p>".into(),
         }

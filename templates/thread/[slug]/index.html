@@ -1,0 +1,17 @@
+<!--
+each: threads
+title: "{title} | {site_title}"
+-->
+<div data-include="_nav_back.html"></div>
+<p class="section-label section-label-left">Thread</p>
+<h1 class="thread-title" data-slot="title">A thread</h1>
+<p class="thread-desc" data-slot="description">What the thread is about.</p>
+<ol class="post-list thread-list" data-each="parts">
+  <li class="post-item">
+    <span class="post-date">part <span data-slot="part">1</span></span>
+    <div class="post-item-body">
+      <a class="post-link" data-attr-href="url" data-slot="title" href="/blog/">An example post</a>
+      <span class="thread-part-date" data-slot="date">2026 · 01 · 01</span>
+    </div>
+  </li>
+</ol>

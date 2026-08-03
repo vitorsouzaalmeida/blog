@@ -1,6 +1,5 @@
 use ab_glyph::{Font, FontRef, GlyphId, PxScale, ScaleFont};
 
-use crate::config;
 use crate::content::Post;
 
 const REGULAR: &[u8] = include_bytes!("../assets/og-fonts/Merriweather-Regular.ttf");
@@ -14,8 +13,12 @@ const META_PX: f32 = 28.0;
 const TITLE_TOP: f32 = 235.0;
 const LINE_HEIGHT: f32 = 88.0;
 const MAX_LINES: usize = 4;
-const INK: [u8; 3] = [17, 17, 17];
-const MUTED: [u8; 3] = [85, 85, 85];
+/// The palette in `static/styles.css`, which the card is a screenshot of in
+/// spirit: a link shared anywhere else should preview as the site it opens.
+const PAPER: [u8; 3] = [0x1e, 0x1f, 0x23];
+const INK: [u8; 3] = [0xe4, 0xe5, 0xe9];
+const MUTED: [u8; 3] = [0x8c, 0x8f, 0x99];
+const ACCENT: [u8; 3] = [0x2e, 0xff, 0xff];
 
 pub struct Fonts {
     regular: FontRef<'static>,
@@ -44,9 +47,11 @@ struct Canvas {
 }
 
 impl Canvas {
-    fn white() -> Canvas {
+    fn filled(rgb: [u8; 3]) -> Canvas {
         Canvas {
-            px: vec![255; (W * H * 4) as usize],
+            px: (0..W * H)
+                .flat_map(|_| [rgb[0], rgb[1], rgb[2], 255])
+                .collect(),
         }
     }
 
@@ -137,16 +142,16 @@ fn wrap(font: &FontRef, text: &str, px: f32, max_w: f32) -> Vec<String> {
 }
 
 pub fn render(fonts: &Fonts, post: &Post) -> Vec<u8> {
-    let mut img = Canvas::white();
+    let mut img = Canvas::filled(PAPER);
 
     draw_text(
         &mut img,
         &fonts.regular,
-        config::WEBSITE,
+        crate::WEBSITE,
         MARGIN,
         130.0,
         META_PX,
-        INK,
+        ACCENT,
     );
 
     let max_w = W as f32 - MARGIN * 2.0;
@@ -176,7 +181,7 @@ pub fn render(fonts: &Fonts, post: &Post) -> Vec<u8> {
         MUTED,
     );
 
-    let date = post.pub_date.iso();
+    let date = post.pub_date.to_string();
     let dw = measure(&fonts.regular, &date, META_PX);
     draw_text(
         &mut img,
