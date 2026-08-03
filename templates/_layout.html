@@ -4,22 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <link rel="preload" href="/fonts/newsreader-300-700-normal-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <!-- One theme, so the browser's own furniture -- scrollbars, form controls,
+         the flash before first paint -- is told about it here rather than by a
+         script. Nothing on this page runs JavaScript in a production build. -->
+    <meta name="color-scheme" content="dark" />
+
+    <!-- Monospace 500 sets the largest text on every page now, so it preloads
+         alongside the two faces that were already here. -->
+    <link rel="preload" href="/fonts/jetbrainsmono-500-normal-latin.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/jetbrainsmono-400-normal-latin.woff2" as="font" type="font/woff2" crossorigin />
-    <script>(function(){
-  try{
-    var t = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-    document.documentElement.setAttribute('data-theme', t === 'dark' ? 'dark' : 'light');
-  }catch(e){}
-  document.addEventListener('click', function(e){
-    var btn = e.target.closest && e.target.closest('#theme-toggle');
-    if(!btn) return;
-    var el = document.documentElement;
-    var next = el.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-    el.setAttribute('data-theme', next);
-    try{ localStorage.setItem('theme', next); }catch(e){}
-  });
-})();</script>
+    <link rel="preload" href="/fonts/newsreader-300-700-normal-latin.woff2" as="font" type="font/woff2" crossorigin />
 
     <title data-slot="head_title">vitor s. almeida</title>
     <meta name="description" data-attr-content="description" content="" />

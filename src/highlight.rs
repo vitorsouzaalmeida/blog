@@ -6,170 +6,170 @@
 //! the name a definition introduces. Keywords, variables, calls and types are
 //! not, which is most of every block, by design.
 //!
-//! Five classes, coloured by `static/highlight.css` from the site's palette:
+//! Four classes, coloured by `static/highlight.css` from the site's palette:
 //!
 //! ```text
 //! str  strings, characters, numbers
 //! com  comments
-//! con  ALL_CAPS constants
+//! con  constants
 //! def  the name a definition introduces
-//! pun  punctuation, dimmed so names stand out
 //! ```
 //!
-//! Everything is still lexed properly even though most tokens end up unstyled:
-//! a `#` inside a string does not open a comment, and a quote inside a comment
-//! does not open a string.
+//! `syntect` does the lexing, against Sublime's syntax definitions, and this
+//! module only decides which of its scopes earn a class -- so a language is
+//! correct because someone else maintains its grammar, while the palette stays
+//! this site's. Every scope with no rule in `RULES` inherits `--ink`, which is
+//! most of them.
+//!
+//! The mapping falls out of a property of those definitions worth naming: they
+//! scope a *binding site* and leave a *use* alone. In OCaml `reduce` in
+//! `let rec reduce` is `entity.name.function` and `reduce` in `reduce ~term:lt`
+//! is nothing at all, so "colour definitions, not uses" needs no rule of its
+//! own -- it is what the grammar already says.
 
-/// Per-language data. Comment syntax is the only reason one fixed lexer will
-/// not do -- OCaml nests `(* *)`, shell uses `#`, assembly uses `;` -- and
-/// dropping keyword colouring removes the table that would otherwise dominate.
-struct Lang {
-    /// Prefixes that comment out the rest of the line.
-    line: &'static [&'static str],
-    block: Option<(&'static str, &'static str)>,
-    /// OCaml and Rust nest block comments.
-    nested: bool,
-    /// Words that introduce a definition. The word itself stays unstyled --
-    /// that is the point -- and the identifier following it is the name.
-    defines: &'static [&'static str],
-    /// Delimiters that open a string. A `'` that is *not* listed opens a
-    /// character literal instead, which is what leaves a Rust lifetime and an
-    /// OCaml type variable (`'a`, neither of them a literal) alone.
-    quotes: &'static str,
-    /// ALL_CAPS is a constant in every language here except assembly, where it
-    /// is how mnemonics are written.
-    caps: bool,
-}
+use std::sync::OnceLock;
 
-const RUST: Lang = Lang {
-    line: &["//"],
-    block: Some(("/*", "*/")),
-    nested: true,
-    defines: &[
-        "fn", "struct", "enum", "trait", "type", "mod", "const", "static", "union",
-    ],
-    quotes: "\"",
-    caps: true,
-};
+use syntect::parsing::{ParseState, Scope, ScopeStack, SyntaxReference, SyntaxSet};
+use syntect::util::LinesWithEndings;
 
-const OCAML: Lang = Lang {
-    line: &[],
-    block: Some(("(*", "*)")),
-    nested: true,
-    // `rec` is listed so `let rec f` names `f`: an introducer never names an
-    // introducer, so the two chain.
-    defines: &["let", "rec", "and", "type", "module", "val", "exception"],
-    quotes: "\"",
-    caps: true,
-};
-
-const JS: Lang = Lang {
-    line: &["//"],
-    block: Some(("/*", "*/")),
-    nested: false,
-    defines: &["function", "class", "const"],
-    quotes: "\"'`",
-    caps: true,
-};
-
-const GO: Lang = Lang {
-    line: &["//"],
-    block: Some(("/*", "*/")),
-    nested: false,
-    defines: &["func", "type", "package", "const", "var"],
-    quotes: "\"`",
-    caps: true,
-};
-
-const SHELL: Lang = Lang {
-    line: &["#"],
-    block: None,
-    nested: false,
-    defines: &[],
-    quotes: "\"'",
-    caps: true,
-};
-
-const ASM: Lang = Lang {
-    line: &[";", "//"],
-    block: None,
-    nested: false,
-    defines: &[],
-    quotes: "\"",
-    caps: false,
-};
-
-/// Info-string words that select a language. Anything else -- including the
-/// untagged blocks, which are most of them -- is emitted as plain text.
-const LANGS: [(&str, &Lang); 6] = [
-    ("rust rs", &RUST),
-    ("ocaml ml mli", &OCAML),
-    ("javascript js jsx mjs cjs typescript ts tsx", &JS),
-    ("go", &GO),
-    ("bash sh shell zsh console shell-session sh-session", &SHELL),
-    ("asm nasm x86asm", &ASM),
+/// Scope prefixes that earn a class, in priority order: the first whose prefix
+/// appears anywhere in a token's scope stack wins.
+///
+/// Order is what keeps a delimiter with the thing it delimits. A quote carries
+/// both `string.quoted.double` and `punctuation.definition.string.begin`, and a
+/// `{name}` inside a format string carries `constant.other.placeholder`; because
+/// `string` is tested before either, the whole literal comes out one colour
+/// rather than three.
+const RULES: [(&str, &str); 8] = [
+    ("comment", "com"),
+    ("string", "str"),
+    ("constant.numeric", "str"),
+    ("constant.character", "str"),
+    ("entity.name", "def"),
+    ("variable.parameter", "def"),
+    // A `let` binding in OCaml, which is a name a definition introduces even
+    // though the grammar calls it a constant.
+    ("variable.other.constant", "def"),
+    ("constant", "con"),
 ];
 
-fn lang(name: &str) -> Option<&'static Lang> {
-    LANGS
-        .iter()
-        .find(|(names, _)| names.split(' ').any(|n| n.eq_ignore_ascii_case(name)))
-        .map(|&(_, l)| l)
+/// Loaded once: the dump is some two megabytes to deserialise, and a build
+/// highlights every block of every post.
+fn syntaxes() -> &'static SyntaxSet {
+    static SET: OnceLock<SyntaxSet> = OnceLock::new();
+    SET.get_or_init(SyntaxSet::load_defaults_newlines)
+}
+
+/// `RULES` with each selector interned, which is what `is_prefix_of` compares.
+fn rules() -> &'static [(Scope, &'static str)] {
+    static INTERNED: OnceLock<Vec<(Scope, &'static str)>> = OnceLock::new();
+    INTERNED.get_or_init(|| {
+        RULES
+            .iter()
+            .filter_map(|(sel, class)| Scope::new(sel).ok().map(|scope| (scope, *class)))
+            .collect()
+    })
+}
+
+/// Info-string words Sublime does not know by that name. Everything else is
+/// looked up as written, and anything it still does not know is plain text.
+fn alias(name: &str) -> &str {
+    match name {
+        "typescript" | "ts" | "tsx" | "jsx" | "mjs" | "cjs" => "js",
+        "shell" | "console" | "shell-session" | "sh-session" | "zsh" => "bash",
+        other => other,
+    }
+}
+
+fn is_asm(name: &str) -> bool {
+    matches!(name, "asm" | "nasm" | "x86asm")
 }
 
 /// The contents of one `<code>` element: escaped, and marked up if the language
-/// is one we lex.
+/// is one we can lex.
 pub fn render(code: &str, name: &str) -> String {
-    match lang(name) {
-        Some(l) => lex(code, l),
-        None => {
-            let mut out = String::with_capacity(code.len());
-            push_esc(&mut out, code);
-            out
-        }
+    let name = name.to_ascii_lowercase();
+    if is_asm(&name) {
+        return asm(code);
+    }
+    match syntaxes().find_syntax_by_token(alias(&name)) {
+        Some(syntax) => lex(code, syntax),
+        None => escaped(code),
     }
 }
 
-fn lex(src: &str, l: &Lang) -> String {
-    let mut out = String::with_capacity(src.len() * 2);
-    let mut i = 0;
-
-    while i < src.len() {
-        let rest = &src[i..];
-        let c = rest.chars().next().unwrap_or('\0');
-
-        if let Some(n) = comment(rest, l) {
-            span(&mut out, "com", &rest[..n]);
-            i += n;
-        } else if let Some(n) = quoted(rest, l) {
-            span(&mut out, "str", &rest[..n]);
-            i += n;
-        } else if c.is_ascii_digit() {
-            let n = number(rest);
-            span(&mut out, "str", &rest[..n]);
-            i += n;
-        } else if is_ident_start(c) {
-            i += word(&mut out, rest, l);
-        } else if is_pun(c) {
-            let n = pun(rest, l);
-            span(&mut out, "pun", &rest[..n]);
-            i += n;
-        } else {
-            // Whitespace, and anything else a keyboard produces.
-            let n = c.len_utf8();
-            push_esc(&mut out, &rest[..n]);
-            i += n;
-        }
-    }
+fn escaped(code: &str) -> String {
+    let mut out = String::with_capacity(code.len());
+    push_esc(&mut out, code);
     out
 }
 
-fn span(out: &mut String, class: &str, text: &str) {
-    out.push_str("<span class=\"");
-    out.push_str(class);
-    out.push_str("\">");
+/// The class a token's scope stack earns, or `None` for the majority that earn
+/// nothing.
+fn class(stack: &ScopeStack) -> Option<&'static str> {
+    rules()
+        .iter()
+        .find(|(prefix, _)| stack.as_slice().iter().any(|s| prefix.is_prefix_of(*s)))
+        .map(|&(_, class)| class)
+}
+
+fn lex(code: &str, syntax: &SyntaxReference) -> String {
+    let set = syntaxes();
+    let mut state = ParseState::new(syntax);
+    let mut stack = ScopeStack::new();
+    let mut out = String::with_capacity(code.len() * 2);
+    // The class of the span currently open, so that a run of tokens sharing one
+    // is a single element rather than one per token.
+    let mut open: Option<&'static str> = None;
+
+    for line in LinesWithEndings::from(code) {
+        // A grammar that fails mid-block leaves the rest of the block plain
+        // rather than failing the build: the code is still readable, which is
+        // the whole point of printing it.
+        let Ok(ops) = state.parse_line(line, set) else {
+            emit(&mut out, &mut open, None, line);
+            continue;
+        };
+
+        let mut last = 0;
+        for (at, op) in ops {
+            if at > last {
+                emit(&mut out, &mut open, class(&stack), &line[last..at]);
+            }
+            if stack.apply(&op).is_err() {
+                break;
+            }
+            last = at;
+        }
+        if last < line.len() {
+            emit(&mut out, &mut open, class(&stack), &line[last..]);
+        }
+    }
+
+    emit(&mut out, &mut open, None, "");
+    out
+}
+
+/// Writes `text` under `class`, opening and closing spans only where the class
+/// changes. Called with an empty `text` and no class to close the last one.
+fn emit(
+    out: &mut String,
+    open: &mut Option<&'static str>,
+    class: Option<&'static str>,
+    text: &str,
+) {
+    if *open != class {
+        if open.is_some() {
+            out.push_str("</span>");
+        }
+        if let Some(class) = class {
+            out.push_str("<span class=\"");
+            out.push_str(class);
+            out.push_str("\">");
+        }
+        *open = class;
+    }
     push_esc(out, text);
-    out.push_str("</span>");
 }
 
 /// The three characters that change meaning in element content. Attributes are
@@ -183,168 +183,72 @@ fn push_esc(out: &mut String, s: &str) {
     })
 }
 
-// -- Token kinds --------------------------------------------------------------
+// -- Assembly -----------------------------------------------------------------
 
-/// The length of the comment starting `rest`, if one does. An unterminated
-/// block comment runs to the end of the block, which is what the author wrote.
-fn comment(rest: &str, l: &Lang) -> Option<usize> {
-    if l.line.iter().any(|p| rest.starts_with(p)) {
-        return Some(rest.find('\n').unwrap_or(rest.len()));
-    }
-
-    let (open, close) = l.block.filter(|(open, _)| rest.starts_with(open))?;
-    let mut i = open.len();
-    let mut depth = 1usize;
-
-    while i < rest.len() {
-        if rest[i..].starts_with(close) {
-            i += close.len();
-            depth -= 1;
-            if depth == 0 {
-                return Some(i);
-            }
-        } else if l.nested && rest[i..].starts_with(open) {
-            i += open.len();
-            depth += 1;
-        } else {
-            i += char_len(&rest[i..]);
-        }
-    }
-    Some(rest.len())
-}
-
-/// A string, or -- where `'` is not a string delimiter -- a character literal.
-fn quoted(rest: &str, l: &Lang) -> Option<usize> {
-    let c = rest.chars().next()?;
-    if c == '\'' && !l.quotes.contains('\'') {
-        return char_literal(rest);
-    }
-    if !l.quotes.contains(c) {
-        return None;
-    }
-    // A backtick spans lines (Go's raw strings, JS templates); a quote does
-    // not, so one stray quote colours a line rather than the rest of the block.
-    let stop = match c {
-        '`' => rest.len(),
-        _ => rest.find('\n').unwrap_or(rest.len()),
-    };
-    let mut i = c.len_utf8();
-    while i < stop {
-        let ch = rest[i..].chars().next().unwrap_or('\0');
-        if ch == '\\' {
-            i += 1 + char_len(&rest[i + 1..]);
-            continue;
-        }
-        i += ch.len_utf8();
-        if ch == c {
-            return Some(i);
-        }
-    }
-    Some(stop)
-}
-
-/// `'x'`, `'\n'`, `'\x41'` -- but not `'a`, which is a Rust lifetime or an
-/// OCaml type variable and stays unstyled.
-fn char_literal(rest: &str) -> Option<usize> {
-    let body = &rest[1..];
-    let after = match body.strip_prefix('\\') {
-        None => &body[char_len(body)..],
-        Some(esc) => {
-            let head = char_len(esc);
-            let digits = esc[head..].bytes().take_while(u8::is_ascii_alphanumeric);
-            &esc[head + digits.count()..]
-        }
-    };
-    after.strip_prefix('\'').map(|tail| rest.len() - tail.len())
-}
-
-/// Digits, then whatever letters and underscores belong to the literal
-/// (`0x1f`, `34h`, `1_000`). A `.` only when a digit follows it, so Rust's
-/// `0..5` lexes as a number, a range and a number.
-fn number(rest: &str) -> usize {
-    let b = rest.as_bytes();
+/// Sublime ships no assembler, and the blocks that use one here are mostly `;`
+/// comments, so assembly is the one language still lexed by hand.
+///
+/// Comments, strings and numbers only. No names: uppercase in assembly is how a
+/// mnemonic is written rather than how a constant is, so the rule that finds
+/// `MAX_SIZE` in every other language would colour every token of a block.
+fn asm(code: &str) -> String {
+    let mut out = String::with_capacity(code.len() * 2);
     let mut i = 0;
-    while i < b.len() {
-        match b[i] {
-            c if c.is_ascii_alphanumeric() || c == b'_' => i += 1,
-            b'.' if b.get(i + 1).is_some_and(u8::is_ascii_digit) => i += 1,
-            _ => break,
-        }
+
+    while i < code.len() {
+        let rest = &code[i..];
+        let c = rest.chars().next().unwrap_or('\0');
+
+        let (class, n) = if c == ';' || rest.starts_with("//") {
+            ("com", rest.find('\n').unwrap_or(rest.len()))
+        } else if c == '"' || c == '\'' {
+            ("str", quoted(rest, c))
+        } else if c.is_ascii_digit() {
+            ("str", number(rest))
+        } else {
+            let n = c.len_utf8();
+            push_esc(&mut out, &rest[..n]);
+            i += n;
+            continue;
+        };
+
+        span(&mut out, class, &rest[..n]);
+        i += n;
     }
-    i
+    out
 }
 
-/// Emits an identifier and, when it is a word that introduces a definition, the
-/// name that follows it. Returns how much of `rest` was consumed.
-fn word(out: &mut String, rest: &str, l: &Lang) -> usize {
-    let n = ident_len(rest, l);
-    let (name, tail) = rest.split_at(n);
-
-    if !l.defines.contains(&name) {
-        match l.caps && is_const(name) {
-            true => span(out, "con", name),
-            false => push_esc(out, name),
-        }
-        return n;
-    }
-
-    push_esc(out, name);
-    let gap = tail.len() - tail.trim_start_matches([' ', '\t']).len();
-    let after = &tail[gap..];
-    let m = ident_len(after, l);
-
-    // An introducer never names an introducer: `let rec f` names `f`.
-    let names = after.chars().next().is_some_and(is_ident_start);
-    match names && !l.defines.contains(&&after[..m]) {
-        false => n,
-        true => {
-            out.push_str(&tail[..gap]);
-            span(out, "def", &after[..m]);
-            n + gap + m
-        }
-    }
+fn span(out: &mut String, class: &str, text: &str) {
+    out.push_str("<span class=\"");
+    out.push_str(class);
+    out.push_str("\">");
+    push_esc(out, text);
+    out.push_str("</span>");
 }
 
-fn is_ident_start(c: char) -> bool {
-    c.is_ascii_alphabetic() || c == '_'
+/// A quoted run, ending at its closing delimiter or the end of the line, so one
+/// stray quote colours a line rather than the rest of the block.
+fn quoted(rest: &str, delim: char) -> usize {
+    let mut i = delim.len_utf8();
+    while i < rest.len() {
+        let c = rest[i..].chars().next().unwrap_or('\0');
+        if c == '\n' {
+            return i;
+        }
+        i += c.len_utf8();
+        if c == delim {
+            return i;
+        }
+    }
+    rest.len()
 }
 
-/// A trailing `'` belongs to the name where it is not a string delimiter:
-/// OCaml's `lt'` is one identifier, not an identifier and an open quote.
-fn ident_len(rest: &str, l: &Lang) -> usize {
-    let prime = !l.quotes.contains('\'');
+/// Digits, then whatever letters and underscores belong to the literal, which
+/// is how `34h` and `0x1f` are written.
+fn number(rest: &str) -> usize {
     rest.bytes()
-        .take_while(|b| b.is_ascii_alphanumeric() || *b == b'_' || (prime && *b == b'\''))
+        .take_while(|b| b.is_ascii_alphanumeric() || *b == b'_')
         .count()
-}
-
-/// Entirely uppercase and underscores. A purely lexical rule, so constants need
-/// no per-language data at all.
-fn is_const(name: &str) -> bool {
-    name.len() >= 2
-        && name.bytes().any(|b| b.is_ascii_uppercase())
-        && name
-            .bytes()
-            .all(|b| b.is_ascii_uppercase() || b.is_ascii_digit() || b == b'_')
-}
-
-fn is_pun(c: char) -> bool {
-    c.is_ascii_punctuation() && !matches!(c, '"' | '\'' | '`' | '_')
-}
-
-/// A run of punctuation, stopping where a comment begins so `;` in `x);` and
-/// `;` opening an assembly comment are not one token.
-fn pun(rest: &str, l: &Lang) -> usize {
-    let b = rest.as_bytes();
-    let mut i = 1;
-    while i < b.len() && is_pun(b[i] as char) && comment(&rest[i..], l).is_none() {
-        i += 1;
-    }
-    i
-}
-
-fn char_len(s: &str) -> usize {
-    s.chars().next().map_or(0, char::len_utf8)
 }
 
 #[cfg(test)]
@@ -353,6 +257,12 @@ mod tests {
 
     fn hl(code: &str, lang: &str) -> String {
         render(code, lang)
+    }
+
+    /// Whether `text` is exactly what one `class` span holds, which is what
+    /// every test below asks.
+    fn classed(html: &str, class: &str, text: &str) -> bool {
+        html.contains(&format!("<span class=\"{class}\">{text}</span>"))
     }
 
     #[test]
@@ -364,128 +274,118 @@ mod tests {
 
     #[test]
     fn code_is_escaped_even_inside_a_span() {
-        let out = hl("// <script>alert(1)</script>", "rust");
+        let out = hl("// <script>alert(1)</script>\n", "rust");
         assert!(!out.contains("<script>"), "raw tag survived: {out}");
-        assert_eq!(
-            out,
-            "<span class=\"com\">// &lt;script&gt;alert(1)&lt;/script&gt;</span>"
-        );
+        assert!(out.contains("&lt;script&gt;"), "got: {out}");
+        assert!(out.contains("class=\"com\""), "got: {out}");
     }
 
     #[test]
     fn comments_are_recognised_per_language() {
-        assert!(hl("# a comment", "bash").starts_with("<span class=\"com\">#"));
-        assert!(hl("; a comment", "asm").starts_with("<span class=\"com\">;"));
-        assert!(hl("(* a comment *)", "ocaml").starts_with("<span class=\"com\">(*"));
-        assert!(hl("// a comment", "go").starts_with("<span class=\"com\">//"));
+        assert!(hl("# a comment\n", "bash").contains("class=\"com\""));
+        assert!(hl("; a comment\n", "asm").contains("class=\"com\""));
+        assert!(hl("(* a comment *)\n", "ocaml").contains("class=\"com\""));
+        assert!(hl("// a comment\n", "go").contains("class=\"com\""));
         // A `#` is not a comment in a language that has no line comment.
-        assert!(!hl("#[derive(Debug)]", "rust").contains("class=\"com\""));
-    }
-
-    #[test]
-    fn ocaml_nests_block_comments() {
-        let out = hl("(* a (* b *) c *) x", "ocaml");
-        assert_eq!(
-            out, "<span class=\"com\">(* a (* b *) c *)</span> x",
-            "the inner close must not end the outer comment"
-        );
+        assert!(!hl("#[derive(Debug)]\n", "rust").contains("class=\"com\""));
     }
 
     #[test]
     fn a_comment_marker_inside_a_string_is_not_a_comment() {
-        assert_eq!(
-            hl("\"a # b\"", "bash"),
-            "<span class=\"str\">\"a # b\"</span>"
-        );
-        assert_eq!(
-            hl("db \"a ; b\"", "asm"),
-            "db <span class=\"str\">\"a ; b\"</span>"
-        );
-        // ...and a quote inside a comment does not open a string.
-        assert_eq!(hl("# don't", "bash"), "<span class=\"com\"># don't</span>");
+        let out = hl("echo \"a # b\"\n", "bash");
+        assert!(!out.contains("class=\"com\""), "got: {out}");
+        let out = hl("db \"a ; b\"\n", "asm");
+        assert!(!out.contains("class=\"com\""), "got: {out}");
     }
 
     #[test]
-    fn a_string_stops_at_the_end_of_its_line() {
-        let out = hl("\"unterminated\nlet x = 1", "ocaml");
+    fn ocaml_names_every_binding_a_pattern_introduces() {
+        // The reason for this whole module: a hand lexer names `reduce` and
+        // stops, because a binder in ML binds a pattern rather than one name.
+        let out = hl(
+            "let rec reduce ~term =\n  match term with\n  | App (lt, rt) -> lt\n",
+            "ocaml",
+        );
+        assert!(classed(&out, "def", "reduce"), "got: {out}");
+        assert!(classed(&out, "def", "lt"), "got: {out}");
+        assert!(classed(&out, "def", "rt"), "got: {out}");
+    }
+
+    #[test]
+    fn ocaml_constructors_are_the_landmarks_of_a_block() {
+        let out = hl("type term = Var of string | App of term * term\n", "ocaml");
+        assert!(classed(&out, "def", "Var"), "got: {out}");
+        assert!(classed(&out, "def", "App"), "got: {out}");
+    }
+
+    #[test]
+    fn a_use_is_not_a_definition() {
+        // `reduce` is named where it is defined and left alone where it is
+        // called, which is the rule the grammar already encodes. `t` is named
+        // for the same reason: the parameter is a binding, its use is not.
+        let out = hl("let rec reduce t = reduce t\n", "ocaml");
+        assert!(classed(&out, "def", "reduce"), "got: {out}");
+        assert!(classed(&out, "def", "t"), "got: {out}");
         assert!(
-            out.contains("<span class=\"str\">\"unterminated</span>"),
-            "got: {out}"
-        );
-        assert!(
-            out.contains("class=\"def\">x<"),
-            "the next line still lexes: {out}"
+            out.ends_with("= reduce t\n"),
+            "the call is not marked: {out}"
         );
     }
 
     #[test]
-    fn a_lifetime_is_not_a_character_literal_but_a_character_is() {
-        assert_eq!(hl("'a", "rust"), "'a");
-        assert_eq!(hl("'x'", "rust"), "<span class=\"str\">'x'</span>");
-        assert_eq!(hl("'\\n'", "rust"), "<span class=\"str\">'\\n'</span>");
-        assert_eq!(hl("'0'", "asm"), "<span class=\"str\">'0'</span>");
-        // OCaml primes belong to the name.
-        assert_eq!(hl("lt'", "ocaml"), "lt'");
-        // Where `'` is a string delimiter it stays one.
-        assert_eq!(hl("'abc'", "bash"), "<span class=\"str\">'abc'</span>");
-    }
-
-    #[test]
-    fn a_definition_names_the_identifier_after_the_introducer() {
-        assert!(hl("fn main() {}", "rust").contains("class=\"def\">main<"));
-        assert!(hl("let rec to_string t =", "ocaml").contains("class=\"def\">to_string<"));
-        assert!(hl("type term =", "ocaml").contains("class=\"def\">term<"));
-        assert!(hl("func Add(a int)", "go").contains("class=\"def\">Add<"));
+    fn a_definition_names_the_identifier_it_introduces() {
+        assert!(classed(&hl("fn main() {}\n", "rust"), "def", "main"));
+        assert!(classed(
+            &hl("struct Point { x: f64 }\n", "rust"),
+            "def",
+            "Point"
+        ));
+        assert!(classed(&hl("func Add(a int) int {}\n", "go"), "def", "Add"));
         // The introducer itself stays unstyled -- keywords are not coloured.
-        assert!(!hl("fn main() {}", "rust").contains(">fn<"));
-        // Nothing to name is not an error.
-        assert_eq!(hl("let", "ocaml"), "let");
-        assert!(hl("func (r *R) f()", "go").contains("func <span class=\"pun\">("));
+        assert!(!hl("fn main() {}\n", "rust").contains(">fn<"));
     }
 
     #[test]
-    fn all_caps_identifiers_are_constants_except_in_assembly() {
-        assert!(hl("MAX_SIZE", "rust").contains("class=\"con\">MAX_SIZE<"));
-        assert!(!hl("maxSize", "rust").contains("class=\"con\""));
-        // A single capital is a type variable far more often than a constant.
-        assert!(!hl("T", "rust").contains("class=\"con\""));
-        // Uppercase mnemonics would colour every token of an assembly block.
-        assert_eq!(hl("MOV AL", "asm"), "MOV AL");
+    fn strings_and_numbers_share_a_class_and_swallow_their_delimiters() {
+        // The quotes belong to the literal, not to a separate punctuation span:
+        // `string` outranks `punctuation.definition.string` in `RULES`.
+        let out = hl("let s = \"hi\";\n", "rust");
+        assert!(classed(&out, "str", "\"hi\""), "got: {out}");
+        assert!(classed(&hl("let n = 10;\n", "rust"), "str", "10"));
     }
 
     #[test]
-    fn numbers_share_the_string_colour_and_stop_where_the_literal_does() {
-        assert_eq!(hl("34h", "asm"), "<span class=\"str\">34h</span>");
+    fn all_caps_constants_are_named() {
+        assert!(classed(
+            &hl("const MAX: usize = 10;\n", "rust"),
+            "con",
+            "MAX"
+        ));
+    }
+
+    #[test]
+    fn assembly_is_lexed_here_and_mnemonics_stay_unstyled() {
         assert_eq!(
-            hl("0..5", "rust"),
-            "<span class=\"str\">0</span><span class=\"pun\">..</span><span class=\"str\">5</span>"
+            hl("MOV AL, 34h\n", "asm"),
+            "MOV AL, <span class=\"str\">34h</span>\n"
         );
-        // A digit inside a name is part of the name, not a literal.
-        assert_eq!(hl("t1", "ocaml"), "t1");
+        assert!(hl("mov rax, 1 ; a comment\n", "asm").contains("<span class=\"com\">; a comment"));
+        assert!(hl("db '0'\n", "asm").contains("<span class=\"str\">'0'</span>"));
     }
 
     #[test]
-    fn punctuation_runs_are_one_span_and_stop_before_a_comment() {
-        assert_eq!(hl("->", "ocaml"), "<span class=\"pun\">-&gt;</span>");
-        assert_eq!(
-            hl("x); ", "asm"),
-            "x<span class=\"pun\">)</span><span class=\"com\">; </span>"
-        );
-    }
-
-    #[test]
-    fn multibyte_source_is_never_split_mid_character() {
-        assert_eq!(
-            hl("\"λ\" ^ x", "ocaml"),
-            "<span class=\"str\">\"λ\"</span> <span class=\"pun\">^</span> x"
-        );
-        assert_eq!(hl("(* λ *)", "ocaml"), "<span class=\"com\">(* λ *)</span>");
+    fn an_alias_reaches_the_syntax_it_names() {
+        // TypeScript and the shell session names are not Sublime tokens; the
+        // blocks that use them would otherwise come out plain.
+        assert!(hl("const x = 1;\n", "typescript").contains("class="));
+        assert!(hl("# comment\n", "shell").contains("class=\"com\""));
+        assert!(hl("# comment\n", "console").contains("class=\"com\""));
     }
 
     #[test]
     fn every_code_block_in_the_repository_lexes_to_the_same_text() {
-        // The lexer may only add markup: strip it and the source must come back
-        // byte for byte, which is the one invariant a hand-written lexer can
+        // The highlighter may only add markup: strip it and the source must come
+        // back byte for byte, which is the one invariant a swap of lexers can
         // silently break.
         let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("content/blog");
         let mut blocks = 0;

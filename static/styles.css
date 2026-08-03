@@ -1,33 +1,33 @@
 /* Fonts are declared in /fonts/fonts.css (self-hosted, linked from <head>). */
 
-:root {
-  --paper: #f2efe7; /* page background        */
-  --surface: #eae6db; /* raised surfaces, code  */
-  --ink: #2b2722; /* primary text           */
-  --muted: #8a8378; /* secondary text, meta   */
-  --accent: #b06a3d; /* links, hover, emphasis */
-  --rule: #e2ddd1; /* hairline borders       */
+/* One theme. There is no toggle, no `[data-theme]` selector and no inline
+   script deciding which palette to write -- `color-scheme` in the layout tells
+   the browser to render its own furniture dark and that is the whole of it.
+   Everything neutral is derived from --paper so the page reads as one surface.
 
-  /* Code. Everything else in a block inherits --ink; see highlight.css. */
-  --code-string: #5c7148; /* strings, chars, numbers */
-  --code-comment: #a8542c; /* comments, deliberately loud */
-  --code-name: #6b5b95; /* constants, definition names */
+   The cyan is deliberately rationed. #2effff on #1e1f23 is ~13:1 contrast,
+   which is not an accessibility problem but is a loudness one: used on every
+   link at rest it stops being an accent and becomes the background noise. So
+   links sit in --accent-dim and snap to --accent on hover, and the full cyan
+   otherwise appears in exactly two static places -- the tagline and selected
+   text. */
+:root {
+  --paper: #1e1f23; /* page background        */
+  --surface: #26272c; /* raised surfaces, code  */
+  --ink: #e4e5e9; /* primary text           */
+  --muted: #8c8f99; /* secondary text, meta   */
+  --accent: #2effff; /* hover, selection, tagline */
+  --accent-dim: #17a3a8; /* links and marks at rest   */
+  --rule: #303239; /* hairline borders       */
+
+  /* Code. Two hues: comments in the cyan's warm complement, everything named
+     in a quieter cyan. The rest of a block inherits --ink; see highlight.css. */
+  --code-string: #6cb8bd; /* strings, chars, numbers */
+  --code-comment: #ff9b6a; /* comments, deliberately loud */
+  --code-name: #9fd5d8; /* constants, definition names */
 
   --font-serif: "Newsreader", Georgia, serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
-}
-
-[data-theme="dark"] {
-  --paper: #1f1d1a;
-  --surface: #27241f;
-  --ink: #e8e4da;
-  --muted: #9c968a;
-  --accent: #c8946a;
-  --rule: #332f29;
-
-  --code-string: #a3bd83;
-  --code-comment: #e0996a;
-  --code-name: #b3a2d8;
 }
 
 /* Cross-document view transitions, paired with the speculation rules in
@@ -54,13 +54,18 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  font-family: var(--font-serif);
+  font-family: var(--font-mono);
   background-color: var(--paper);
   color: var(--ink);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   font-optical-sizing: auto;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--paper);
 }
 
 a {
@@ -73,6 +78,13 @@ a:hover {
   color: var(--accent);
 }
 
+/* Nothing else gives keyboard focus away, now that there is no button on the
+   page and links carry no resting colour of their own. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
 ul,
 ol {
   list-style: none;
@@ -81,9 +93,19 @@ ol {
 /* Column width and footer layout are the only things that vary by kind of
    page, and they vary together, so `<body>` carries the kind and the rest is
    here rather than in a template. */
-.home main,
-.home .site-footer {
-  max-width: 760px;
+/* Home has no footer, so `main` is the whole viewport and a short grid would
+   otherwise sit against the top of it with half a screen of nothing below.
+   `margin-block: auto` on the grid rather than `justify-content: center` on the
+   column: auto margins only absorb *positive* free space, so a tall grid on a
+   phone falls back to the top edge instead of overflowing past it. */
+.home main {
+  max-width: 1040px;
+  display: flex;
+  flex-direction: column;
+}
+
+.home-grid {
+  margin-block: auto;
 }
 
 .page main,
@@ -112,22 +134,16 @@ main {
   padding-inline: 24px;
   padding-top: 16px;
   border-top: 1px solid var(--rule);
-  font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: 0.05em;
   color: var(--muted);
 }
 
+/* Home carries these links in its left column and its copyright under them,
+   so the shared footer would only repeat itself. Which kind of page gets which
+   footer is the rule above, taken one step further. */
 .home .site-footer {
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  padding-block: 8px;
-}
-
-/* The nav reads first on the home page and last everywhere else. */
-.home .footer-meta {
-  order: 2;
+  display: none;
 }
 
 .footer-nav {
@@ -135,10 +151,6 @@ main {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 18px;
-}
-
-.home .footer-nav {
-  justify-content: center;
 }
 
 .footer-meta {
@@ -151,132 +163,89 @@ main {
   .mobile-hidden {
     display: none;
   }
-
-  /* The home page's footer has room for the full nav. */
-  .home .mobile-hidden {
-    display: list-item;
-  }
-}
-
-/* ---------- theme toggle ---------- */
-#theme-toggle {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: inherit;
-  transition: color 0.15s ease;
-  vertical-align: middle;
-}
-
-#theme-toggle:hover {
-  color: var(--accent);
-}
-
-.sun-icon,
-.moon-icon {
-  transition: opacity 0.3s ease;
-}
-
-.sun-icon {
-  display: block;
-}
-
-.moon-icon {
-  display: none;
-}
-
-[data-theme="dark"] .sun-icon {
-  display: none;
-}
-
-[data-theme="dark"] .moon-icon {
-  display: block;
 }
 
 /* ---------- back nav ---------- */
 .nav-back {
-  font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: 0.05em;
   color: var(--muted);
 }
 
 /* ---------- home ---------- */
-.home-hero {
-  max-width: 600px;
-  margin-inline: auto;
-  text-align: center;
+/* One column on a phone, two from 900px: who I am on the left, what I wrote on
+   the right. The left column is short and the right one is not, so it sticks
+   rather than leaving a column of empty page beside a long list. */
+.home-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 56px;
+}
+
+.home-intro {
+  min-width: 0;
+}
+
+.home-posts {
+  min-width: 0;
 }
 
 .site-title {
-  font-family: var(--font-serif);
-  font-size: 42px;
+  font-family: var(--font-mono);
+  font-size: 26px;
   font-weight: 500;
-  line-height: 1.05;
-  letter-spacing: -0.025em;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
 }
 
 .tagline {
-  margin-top: 12px;
-  font-family: var(--font-mono);
+  margin-top: 10px;
   font-size: 11px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--accent);
 }
 
-.home-nav {
-  margin-top: 20px;
-}
-
-.home-nav ul {
-  display: flex;
-  justify-content: center;
-  gap: 24px;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.05em;
-  color: var(--muted);
-}
-
 .bio {
-  margin-top: 36px;
+  margin-top: 28px;
   font-family: var(--font-serif);
   font-size: 17px;
   line-height: 1.75;
 }
 
-.home-posts {
-  max-width: 520px;
-  margin-inline: auto;
-  margin-top: 56px;
+.home-links {
+  margin-top: 32px;
 }
 
-.rule {
-  height: 1px;
-  width: 100%;
-  background: var(--rule);
+.home-links ul {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 24px;
+  max-width: 260px;
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+.home-copy {
+  margin-top: 32px;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  color: var(--muted);
 }
 
 .see-all {
-  margin-top: 40px;
-  text-align: center;
+  margin-top: 28px;
 }
 
 .accent-link {
-  font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: 0.05em;
-  color: var(--accent);
+  color: var(--accent-dim);
 }
 
 /* ---------- section labels ---------- */
 .section-label {
-  font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -284,14 +253,11 @@ main {
 }
 
 .home-posts .section-label {
-  margin-top: 48px;
-  margin-bottom: 8px;
-  text-align: center;
+  margin-bottom: 12px;
 }
 
 .section-label-left {
   margin-top: 40px;
-  text-align: left;
 }
 
 /* ---------- post list (home, /blog, /tag, /thread) ---------- */
@@ -314,7 +280,6 @@ main {
   flex-shrink: 0;
   width: 106px;
   white-space: nowrap;
-  font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: 0.06em;
   color: var(--muted);
@@ -322,18 +287,17 @@ main {
 
 .post-item-body {
   flex: 1;
+  min-width: 0;
 }
 
 .post-link {
-  font-family: var(--font-serif);
-  font-size: 16px;
-  line-height: 1.4;
+  font-size: 15px;
+  line-height: 1.45;
 }
 
 .thread-tag {
   margin-top: 4px;
   display: block;
-  font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -344,20 +308,33 @@ main {
   margin-top: 4px;
   display: block;
   white-space: nowrap;
-  font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.06em;
   color: var(--muted);
+}
+
+/* A fixed date column costs 106px of a 342px phone, and monospace titles are
+   wider than the serif ones this list used to hold -- together that wrapped
+   every title to three lines. Below this width the date is a line of its own
+   and the title gets the whole column. */
+@media (max-width: 560px) {
+  .post-item {
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .post-date {
+    width: auto;
+  }
 }
 
 /* ---------- page titles ---------- */
 .page-title {
   margin-top: 40px;
   margin-bottom: 24px;
-  font-family: var(--font-serif);
-  font-size: 32px;
+  font-size: 24px;
   font-weight: 500;
-  line-height: 1.1;
+  line-height: 1.2;
   letter-spacing: -0.02em;
 }
 
@@ -367,7 +344,6 @@ main {
 }
 
 .post-meta {
-  font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: 0.06em;
   color: var(--muted);
@@ -388,17 +364,18 @@ main {
   content: " · ";
 }
 
+/* The header block is chrome and the body below it is prose, so the title is
+   set in the UI face and the subtitle in the reading one. */
 .post-title {
   margin-top: 16px;
-  font-family: var(--font-serif);
-  font-size: 38px;
+  font-size: 27px;
   font-weight: 500;
-  line-height: 1.12;
+  line-height: 1.25;
   letter-spacing: -0.025em;
 }
 
 .post-subtitle {
-  margin-top: 8px;
+  margin-top: 10px;
   font-family: var(--font-serif);
   font-size: 20px;
   font-style: italic;
@@ -413,7 +390,6 @@ main {
 }
 
 .thread-box-title {
-  font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: 0.06em;
   color: var(--muted);
@@ -424,7 +400,6 @@ main {
   display: flex;
   justify-content: space-between;
   gap: 24px;
-  font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: 0.06em;
   color: var(--muted);
@@ -455,13 +430,12 @@ main {
   flex-wrap: wrap;
   column-gap: 24px;
   row-gap: 12px;
-  font-family: var(--font-mono);
   font-size: 13px;
   color: var(--muted);
 }
 
 .tag-link {
-  color: var(--accent);
+  color: var(--accent-dim);
   text-decoration: none;
 }
 
@@ -481,10 +455,9 @@ main {
 /* ---------- thread page ---------- */
 .thread-title {
   margin-top: 12px;
-  font-family: var(--font-serif);
-  font-size: 32px;
+  font-size: 24px;
   font-weight: 500;
-  line-height: 1.1;
+  line-height: 1.2;
   letter-spacing: -0.02em;
 }
 
@@ -501,12 +474,15 @@ main {
 }
 
 /* ---------- article prose ---------- */
+/* Everything from here down is the reading face. The chrome around it is
+   monospace; the post itself is not. */
 article {
   /* Consistent gap below the header regardless of what the prose opens with.
      A heading-first post already got this from `article h2`'s margin-top;
      this collapses with that (no doubling) and gives paragraph-first posts
      — and posts preceded by a thread box — the same starting position. */
   margin-top: 40px;
+  font-family: var(--font-serif);
   font-size: 17px;
   line-height: 1.78;
   color: var(--ink);
@@ -522,7 +498,6 @@ article > p:first-of-type {
 }
 
 article h2 {
-  font-family: var(--font-serif);
   font-size: 23px;
   font-weight: 500;
   line-height: 1.3;
@@ -531,7 +506,6 @@ article h2 {
 }
 
 article h3 {
-  font-family: var(--font-serif);
   font-size: 19px;
   font-weight: 500;
   line-height: 1.35;
@@ -542,7 +516,6 @@ article h3 {
    not out-shout the real one. h4-h6 are rare but must not fall back to the
    browser's Times default. */
 article h1 {
-  font-family: var(--font-serif);
   font-size: 26px;
   font-weight: 500;
   line-height: 1.25;
@@ -553,7 +526,6 @@ article h1 {
 article h4,
 article h5,
 article h6 {
-  font-family: var(--font-serif);
   font-size: 17px;
   font-weight: 500;
   line-height: 1.4;
@@ -596,14 +568,17 @@ article del {
   text-decoration-thickness: 1px;
 }
 
+/* A post can carry twenty of these in a paragraph, which is exactly where full
+   cyan would stop reading as emphasis. */
 article a {
-  color: var(--accent);
+  color: var(--accent-dim);
   text-decoration: underline;
   text-underline-offset: 2px;
   text-decoration-thickness: 1px;
 }
 
 article a:hover {
+  color: var(--accent);
   text-decoration-thickness: 2px;
 }
 
@@ -651,13 +626,16 @@ article :not(pre) > code {
   padding: 1px 5px;
 }
 
+/* The left edge used to be an accent bar. In cyan it would be a strip of neon
+   down every code block on the site, so the frame is a hairline like every
+   other one and the colour stays inside the block. */
 article pre {
   font-family: var(--font-mono);
   font-size: 14.5px;
   line-height: 1.9;
   background-color: var(--surface) !important;
   border: 1px solid var(--rule);
-  border-left: 3px solid var(--accent);
+  border-left: 3px solid var(--rule);
   border-radius: 2px;
   padding: 20px 24px;
   overflow-x: auto;
@@ -699,7 +677,33 @@ math[display="block"] {
   }
 
   .post-link {
-    font-size: 18px;
+    font-size: 16px;
+  }
+
+  .page-title,
+  .thread-title {
+    font-size: 28px;
+  }
+
+  .post-title {
+    font-size: 32px;
+  }
+}
+
+@media (min-width: 900px) {
+  .home-grid {
+    grid-template-columns: 0.9fr 1.1fr;
+    gap: 72px;
+  }
+
+  .home-intro {
+    position: sticky;
+    top: 48px;
+    align-self: start;
+  }
+
+  .site-title {
+    font-size: 34px;
   }
 }
 

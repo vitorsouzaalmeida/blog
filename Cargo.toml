@@ -16,6 +16,13 @@ pulldown-cmark = { version = "0.13", default-features = false, features = [
   "html",
 ] }
 latex2mathml = "0.2"
+# `regex-fancy` keeps this pure Rust -- no `onig`, so no C toolchain in CI --
+# and `default-syntaxes` is the only asset needed: themes are not, because the
+# colours come from `static/highlight.css`.
+syntect = { version = "5", default-features = false, features = [
+  "default-syntaxes",
+  "regex-fancy",
+] }
 png = "0.18"
 ab_glyph = "0.2"
 chrono = { version = "0.4.45", default-features = false, features = ["clock"] }

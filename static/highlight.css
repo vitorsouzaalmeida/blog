@@ -1,9 +1,14 @@
 /* Syntax highlighting for `<pre class="hl">` code blocks.
  *
- * Five classes, emitted by `src/highlight.rs`: everything else in a block --
- * keywords, variables, calls, types -- inherits `--ink`, which is the point.
- * Colors come from the palette in `styles.css` so code reads as part of the
- * page rather than as a pasted-in theme.
+ * Four classes, emitted by `src/highlight.rs`: everything else in a block --
+ * keywords, variables, calls, types, punctuation -- inherits `--ink`, which is
+ * the point. Colors come from the palette in `styles.css` so code reads as part
+ * of the page rather than as a pasted-in theme.
+ *
+ * Two hues carry all four: names and literals in the site's own cyan, dimmed
+ * so they sit below the prose around them, and comments in its warm
+ * complement. A block therefore never introduces a colour the rest of the page
+ * does not already use.
  */
 
 .hl .str {
@@ -20,8 +25,4 @@
 .hl .con,
 .hl .def {
   color: var(--code-name);
-}
-
-.hl .pun {
-  color: var(--muted);
 }
