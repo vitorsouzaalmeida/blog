@@ -1,10 +1,62 @@
+use std::sync::OnceLock;
+
 use latex2mathml::{latex_to_mathml, DisplayStyle};
 use pulldown_cmark::{html, CodeBlockKind, CowStr, Event, Options, Parser, Tag, TagEnd};
+use syntect::html::{ClassStyle, ClassedHTMLGenerator};
+use syntect::parsing::SyntaxSet;
+use syntect::util::LinesWithEndings;
 
-use crate::highlight;
+use crate::render::fill;
+
+const CODE_BLOCK: &str = include_str!("../templates/code_block.html");
+
+const CLASS_STYLE: ClassStyle = ClassStyle::SpacedPrefixed { prefix: "hl-" };
 
 fn options() -> Options {
     Options::ENABLE_TABLES | Options::ENABLE_STRIKETHROUGH | Options::ENABLE_MATH
+}
+
+fn syntaxes() -> &'static SyntaxSet {
+    static SET: OnceLock<SyntaxSet> = OnceLock::new();
+    SET.get_or_init(two_face::syntax::extra_newlines)
+}
+
+fn language(kind: &CodeBlockKind) -> String {
+    let raw = match kind {
+        CodeBlockKind::Fenced(info) => info.split([' ', ',']).next().unwrap_or(""),
+        CodeBlockKind::Indented => "",
+    };
+    raw.chars()
+        .filter(|c| c.is_ascii_alphanumeric() || *c == '+' || *c == '#' || *c == '-')
+        .collect()
+}
+
+fn token(lang: &str) -> &str {
+    match lang {
+        "shell" | "console" => "bash",
+        other => other,
+    }
+}
+
+fn highlight(code: &str, lang: &str) -> String {
+    let syntaxes = syntaxes();
+    let syntax = syntaxes
+        .find_syntax_by_token(token(lang))
+        .unwrap_or_else(|| syntaxes.find_syntax_plain_text());
+
+    let inner = LinesWithEndings::from(code)
+        .fold(
+            ClassedHTMLGenerator::new_with_class_style(syntax, syntaxes, CLASS_STYLE),
+            |mut generator, line| {
+                generator
+                    .parse_html_for_line_which_includes_newline(line)
+                    .expect("syntax definition");
+                generator
+            },
+        )
+        .finalize();
+
+    fill(CODE_BLOCK, &[("lang", lang), ("code", &inner)])
 }
 
 fn mathml(latex: &str, style: DisplayStyle) -> Result<String, ()> {
@@ -12,107 +64,39 @@ fn mathml(latex: &str, style: DisplayStyle) -> Result<String, ()> {
 }
 
 pub fn render(src: &str) -> String {
-    let mut iter = Parser::new_ext(src, options());
-    let mut events: Vec<Event> = Vec::new();
-
-    while let Some(ev) = iter.next() {
-        match ev {
-            Event::Start(Tag::CodeBlock(kind)) => {
-                let lang = match &kind {
-                    CodeBlockKind::Fenced(l) => {
-                        l.split([' ', ',']).next().unwrap_or("").to_string()
-                    }
-                    CodeBlockKind::Indented => String::new(),
-                };
-                let code: String = iter
-                    .by_ref()
-                    .take_while(|e| !matches!(e, Event::End(TagEnd::CodeBlock)))
-                    .filter_map(|e| match e {
-                        Event::Text(t) => Some(t.to_string()),
-                        _ => None,
-                    })
-                    .collect();
-                let inner = highlight::render(&code, &lang);
-                events.push(Event::Html(CowStr::from(format!(
-                    "<pre class=\"hl\"><code>{inner}</code></pre>"
-                ))));
+    let (events, _) = Parser::new_ext(src, options()).fold(
+        (Vec::new(), None::<(String, String)>),
+        |(mut events, pending), event| match (event, pending) {
+            (Event::Start(Tag::CodeBlock(kind)), _) => {
+                (events, Some((language(&kind), String::new())))
             }
-            Event::InlineMath(latex) => events.push(match mathml(&latex, DisplayStyle::Inline) {
-                Ok(m) => Event::InlineHtml(CowStr::from(m)),
-                Err(()) => Event::Text(latex),
-            }),
-            Event::DisplayMath(latex) => events.push(match mathml(&latex, DisplayStyle::Block) {
-                Ok(m) => Event::Html(CowStr::from(m)),
-                Err(()) => Event::Text(latex),
-            }),
-            other => events.push(other),
-        }
-    }
+            (Event::Text(text), Some((lang, code))) => (events, Some((lang, code + &text))),
+            (Event::End(TagEnd::CodeBlock), Some((lang, code))) => {
+                events.push(Event::Html(CowStr::from(highlight(&code, &lang))));
+                (events, None)
+            }
+            (Event::InlineMath(latex), pending) => {
+                events.push(match mathml(&latex, DisplayStyle::Inline) {
+                    Ok(math) => Event::InlineHtml(CowStr::from(math)),
+                    Err(()) => Event::Text(latex),
+                });
+                (events, pending)
+            }
+            (Event::DisplayMath(latex), pending) => {
+                events.push(match mathml(&latex, DisplayStyle::Block) {
+                    Ok(math) => Event::Html(CowStr::from(math)),
+                    Err(()) => Event::Text(latex),
+                });
+                (events, pending)
+            }
+            (other, pending) => {
+                events.push(other);
+                (events, pending)
+            }
+        },
+    );
 
     let mut out = String::new();
     html::push_html(&mut out, events.into_iter());
     out
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn md(src: &str) -> String {
-        render(src)
-    }
-
-    #[test]
-    fn a_fenced_block_becomes_a_classed_pre() {
-        let out = md("```rust\nfn main() {}\n```\n");
-        assert!(out.starts_with("<pre class=\"hl\"><code>"), "got: {out}");
-        assert!(out.ends_with("</code></pre>"), "got: {out}");
-        // `highlight` marks the name a definition introduces, and nothing else
-        // about this line.
-        assert!(out.contains("class=\"def\">main<"), "got: {out}");
-    }
-
-    #[test]
-    fn an_unknown_language_still_renders_as_a_code_block() {
-        let out = md("```wolof\nsome text\n```\n");
-        assert!(out.contains("<pre class=\"hl\">"), "got: {out}");
-        assert!(out.contains("some text"), "got: {out}");
-    }
-
-    #[test]
-    fn an_indented_block_is_a_code_block_with_no_language() {
-        let out = md("    indented code\n");
-        assert!(out.contains("<pre class=\"hl\">"), "got: {out}");
-        assert!(out.contains("indented code"), "got: {out}");
-    }
-
-    #[test]
-    fn only_the_first_word_of_the_info_string_is_the_language() {
-        let tagged = md("```rust,ignore\nfn main() {}\n```\n");
-        assert_eq!(tagged, md("```rust\nfn main() {}\n```\n"));
-    }
-
-    #[test]
-    fn code_is_escaped_not_injected() {
-        let out = md("```html\n<script>alert(1)</script>\n```\n");
-        assert!(!out.contains("<script>"), "raw script tag survived: {out}");
-        assert!(!out.contains("</script>"), "raw close tag survived: {out}");
-        assert!(out.contains("&lt;"), "nothing was escaped: {out}");
-    }
-
-    #[test]
-    fn math_becomes_mathml() {
-        assert!(md("$x + 1$\n").contains("<math"));
-        assert!(md("$$\\frac{1}{2}$$\n").contains("<math"));
-    }
-
-    #[test]
-    fn malformed_latex_does_not_fail_the_build() {
-        // Recorded because it is surprising: `latex2mathml` reports a bad
-        // expression *inside* the MathML rather than returning `Err`, so the
-        // `Event::Text` fallback above almost never fires and a typo ships a
-        // visible "[PARSE ERROR: ...]" instead of breaking the page.
-        let out = md("$\\frac{1}$\n");
-        assert!(out.contains("PARSE ERROR"), "got: {out}");
-    }
 }

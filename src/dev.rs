@@ -1,4 +1,3 @@
-use chrono::{Datelike, Local};
 use std::fs;
 use std::io::{BufRead, BufReader, Result, Write};
 use std::net::{TcpListener, TcpStream};
@@ -7,23 +6,18 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, SystemTime};
 
+use chrono::{Datelike, Local};
+
+use crate::render::{esc, fill};
 use crate::Ctx;
 
-/// Where the dev build leaves a copy of the inlined stylesheet, so a change to
-/// one can be swapped into the open page instead of reloading it.
-pub const CSS_PATH: &str = "/__css";
+const ERROR: &str = include_str!("../templates/error.html");
 
-/// Injected into every page by a dev build, and into the build-failure page.
 pub fn live_reload() -> String {
-    format!(
-        "(function(){{try{{new EventSource('/__livereload').onmessage=function(e){{\
-         if(e.data==='css'){{fetch('{CSS_PATH}').then(function(r){{return r.text()}})\
-         .then(function(t){{document.querySelector('style').textContent=t}})}}\
-         else{{location.reload()}}}}}}catch(e){{}}}})();"
-    )
+    "(function(){try{new EventSource('/__livereload').onmessage=function(){location.reload()}}catch(e){}})();"
+        .to_string()
 }
 
-#[derive(Debug)]
 pub enum Resolved {
     File(PathBuf),
     Redirect(String),
@@ -38,13 +32,13 @@ pub fn resolve(dist: &Path, url_path: &str) -> Resolved {
     let rel = path.trim_start_matches('/');
 
     if path.ends_with('/') {
-        let f = dist.join(rel).join("index.html");
-        return if f.is_file() {
-            Resolved::File(f)
-        } else {
-            Resolved::NotFound
+        let index = dist.join(rel).join("index.html");
+        return match index.is_file() {
+            true => Resolved::File(index),
+            false => Resolved::NotFound,
         };
     }
+
     let direct = dist.join(rel);
     if direct.is_file() {
         return Resolved::File(direct);
@@ -52,11 +46,12 @@ pub fn resolve(dist: &Path, url_path: &str) -> Resolved {
     if direct.is_dir() {
         return Resolved::Redirect(format!("{path}/"));
     }
+
     let html = dist.join(format!("{rel}.html"));
-    if html.is_file() {
-        return Resolved::File(html);
+    match html.is_file() {
+        true => Resolved::File(html),
+        false => Resolved::NotFound,
     }
-    Resolved::NotFound
 }
 
 pub fn content_type(path: &Path) -> &'static str {
@@ -64,7 +59,6 @@ pub fn content_type(path: &Path) -> &'static str {
         "html" => "text/html; charset=utf-8",
         "css" => "text/css; charset=utf-8",
         "js" => "text/javascript; charset=utf-8",
-        "json" => "application/json; charset=utf-8",
         "xml" => "application/xml; charset=utf-8",
         "svg" => "image/svg+xml",
         "png" => "image/png",
@@ -72,13 +66,20 @@ pub fn content_type(path: &Path) -> &'static str {
         "gif" => "image/gif",
         "webp" => "image/webp",
         "mp4" => "video/mp4",
-        "woff2" => "font/woff2",
-        "woff" => "font/woff",
-        "ttf" => "font/ttf",
         "txt" => "text/plain; charset=utf-8",
         "ico" => "image/x-icon",
         _ => "application/octet-stream",
     }
+}
+
+#[derive(Default)]
+struct State {
+    clients: Mutex<Vec<TcpStream>>,
+    error: Mutex<Option<String>>,
+}
+
+fn error_page(msg: &str) -> String {
+    fill(ERROR, &[("reload", &live_reload()), ("message", &esc(msg))])
 }
 
 fn write_head(stream: &mut TcpStream, status: &str, ctype: &str, len: usize) -> Result<()> {
@@ -86,30 +87,6 @@ fn write_head(stream: &mut TcpStream, status: &str, ctype: &str, len: usize) -> 
         "HTTP/1.1 {status}\r\nContent-Type: {ctype}\r\nContent-Length: {len}\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n"
     );
     stream.write_all(head.as_bytes())
-}
-
-/// What the server threads share: who is listening for a reload, and why the
-/// last build failed, if it did.
-#[derive(Default)]
-struct State {
-    clients: Mutex<Vec<TcpStream>>,
-    error: Mutex<Option<String>>,
-}
-
-/// Serving the error rather than printing it: otherwise the last good `dist/`
-/// keeps being served and you edit against a stale page without noticing.
-fn error_page(msg: &str) -> String {
-    format!(
-        "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">\
-         <title>build failed</title><style>\
-         body{{margin:0;padding:40px;background:#1f1d1a;color:#e8e4da;\
-         font:14px/1.6 ui-monospace,monospace}}\
-         h1{{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#c8946a}}\
-         pre{{margin-top:20px;white-space:pre-wrap}}</style></head>\
-         <body><h1>build failed</h1><pre>{}</pre><script>{}</script></body></html>",
-        crate::fill::esc(msg),
-        live_reload()
-    )
 }
 
 fn handle(mut stream: TcpStream, dist: &Path, state: &State) -> Result<()> {
@@ -165,87 +142,67 @@ fn handle(mut stream: TcpStream, dist: &Path, state: &State) -> Result<()> {
     stream.flush()
 }
 
-/// The most recent modification under `dir` among the files `want` accepts.
-fn newest(dir: &Path, want: &dyn Fn(&Path) -> bool) -> SystemTime {
+fn newest(dir: &Path) -> SystemTime {
     fs::read_dir(dir)
         .into_iter()
         .flatten()
         .flatten()
-        .map(|e| {
-            let path = e.path();
-            match (path.is_dir(), want(&path)) {
-                (true, _) => newest(&path, want),
-                (false, true) => e
+        .map(|entry| {
+            let path = entry.path();
+            match path.is_dir() {
+                true => newest(&path),
+                false => entry
                     .metadata()
                     .and_then(|m| m.modified())
                     .unwrap_or(SystemTime::UNIX_EPOCH),
-                (false, false) => SystemTime::UNIX_EPOCH,
             }
         })
         .max()
         .unwrap_or(SystemTime::UNIX_EPOCH)
 }
 
-fn latest(dirs: &[PathBuf], want: &dyn Fn(&Path) -> bool) -> SystemTime {
+fn latest(dirs: &[PathBuf]) -> SystemTime {
     dirs.iter()
-        .map(|d| newest(d, want))
+        .map(|d| newest(d))
         .max()
         .unwrap_or(SystemTime::UNIX_EPOCH)
 }
 
-fn is_css(path: &Path) -> bool {
-    path.extension().is_some_and(|e| e == "css")
-}
-
-fn broadcast(state: &State, event: &str) {
-    let message = format!("data: {event}\n\n");
+fn broadcast(state: &State) {
     state.clients.lock().unwrap().retain_mut(|s| {
-        s.write_all(message.as_bytes())
+        s.write_all(b"data: reload\n\n")
             .and_then(|_| s.flush())
             .is_ok()
     });
 }
 
-/// Builds, and keeps the reason it could not; answers whether it worked.
-fn rebuild(root: &Path, dist: &Path, ctx: Ctx, state: &State) -> bool {
+fn rebuild(root: &Path, dist: &Path, ctx: Ctx, state: &State) {
     let result = crate::build(root, dist, ctx);
     match &result {
         Ok(()) => println!("rebuilt"),
         Err(e) => eprintln!("build failed: {e}"),
     }
-    let failure = result.err().map(|e| e.to_string());
-    let ok = failure.is_none();
-    *state.error.lock().unwrap() = failure;
-    ok
+    *state.error.lock().unwrap() = result.err().map(|e| e.to_string());
 }
 
 pub fn serve(root: &Path, dist: &Path, port: u16) -> Result<()> {
     let ctx = Ctx::dev(Local::now().year());
     let state = Arc::new(State::default());
-    // A first build that fails still starts the server: the error is the page.
     rebuild(root, dist, ctx, &state);
 
     {
         let state = state.clone();
         let (root, dist) = (root.to_path_buf(), dist.to_path_buf());
-        let dirs = [
-            root.join("content"),
-            root.join("static"),
-            root.join("templates"),
-        ];
+        let dirs = [root.join("content"), root.join("static")];
         thread::spawn(move || {
-            let mut last = latest(&dirs, &|_| true);
+            let mut last = latest(&dirs);
             loop {
                 thread::sleep(Duration::from_millis(250));
-                let now = latest(&dirs, &|_| true);
+                let now = latest(&dirs);
                 if now > last {
                     last = now;
-                    let was_broken = state.error.lock().unwrap().is_some();
-                    let ok = rebuild(&root, &dist, ctx, &state);
-                    // A stylesheet on its own is swapped into the open page,
-                    // which keeps the scroll position mid-post.
-                    let css_only = ok && !was_broken && latest(&dirs, &is_css) == now;
-                    broadcast(&state, if css_only { "css" } else { "reload" });
+                    rebuild(&root, &dist, ctx, &state);
+                    broadcast(&state);
                 }
             }
         });

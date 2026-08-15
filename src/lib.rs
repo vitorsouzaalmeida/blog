@@ -1,23 +1,15 @@
-pub mod check;
 pub mod content;
-pub mod css;
 pub mod dev;
-pub mod disk;
 pub mod feeds;
-pub mod fill;
-pub mod frontmatter;
-pub mod highlight;
-pub mod html;
 pub mod markdown;
-pub mod model;
-pub mod og;
-pub mod routes;
-pub mod xml;
+pub mod render;
 
-use std::io::Result;
-use std::path::Path;
+use std::fs;
+use std::io::{Error, ErrorKind, Result};
+use std::path::{Path, PathBuf};
 
 use content::Post;
+use render::{fragment_url, post_url, tag_url, Page};
 
 pub const TITLE: &str = "vitor s. almeida";
 pub const WEBSITE: &str = "https://vitorsalmeida.com";
@@ -30,8 +22,6 @@ pub const BIRTH_YEAR: i32 = 2004;
 pub struct Ctx {
     pub year: i32,
     pub live_reload: bool,
-    pub og_images: bool,
-    /// Unpublished posts: visible while you write them, absent from the site.
     pub drafts: bool,
 }
 
@@ -40,7 +30,6 @@ impl Ctx {
         Ctx {
             year,
             live_reload: false,
-            og_images: true,
             drafts: false,
         }
     }
@@ -49,105 +38,148 @@ impl Ctx {
         Ctx {
             year,
             live_reload: true,
-            og_images: false,
             drafts: true,
         }
     }
 }
 
-pub fn build(root: &Path, dist: &Path, ctx: Ctx) -> Result<()> {
-    let content = disk::load(root)?;
-    let published: Vec<Post> = content
-        .posts
-        .into_iter()
-        .filter(|p| ctx.drafts || !p.draft)
-        .collect();
-    let posts = &published;
-
-    content.stylesheets.iter().try_for_each(|(name, source)| {
-        css::check(source).map_err(|(err, at)| stylesheet_error(name, source, err, at))
-    })?;
-    let css = css::minify(
-        &content
-            .stylesheets
-            .iter()
-            .map(|(_, source)| source.as_str())
-            .collect::<Vec<&str>>()
-            .join("\n"),
-    );
-    let templates = routes::load(&content.templates).map_err(invalid_data)?;
-    let collections = routes::collections(&templates).map_err(invalid_data)?;
-    let site = model::build(posts, &css, ctx, &collections).map_err(invalid_data)?;
-
-    disk::clean(dist)?;
-
-    let written: Vec<String> = templates
-        .routes
-        .iter()
-        .map(|route| write_pages(route, &templates, &site, dist))
-        .collect::<Result<Vec<Vec<String>>>>()?
-        .concat();
-
-    let all: Vec<&Post> = posts.iter().collect();
-    disk::write(dist, "rss.xml", feeds::rss(&all))?;
-    disk::write(dist, "sitemap.xml", feeds::sitemap(&written))?;
-
-    // The stylesheet is inlined into every page, so the dev server needs a copy
-    // it can hand back on its own to swap one in place (`dev::CSS_PATH`).
-    if ctx.live_reload {
-        disk::write(dist, dev::CSS_PATH.trim_start_matches('/'), &css)?;
-    }
-
-    if ctx.og_images {
-        let fonts = og::Fonts::embedded();
-        for post in posts {
-            let url = model::url_of(&collections, "posts", &post.slug).map_err(invalid_data)?;
-            let rel = model::og_image(&url);
-            disk::write(dist, rel.trim_start_matches('/'), og::render(&fonts, post))?;
-        }
-    }
-
-    for asset in &content.assets {
-        disk::copy(dist, &asset.rel, &asset.src)?;
-    }
-
-    Ok(())
+fn invalid(path: &Path, msg: impl std::fmt::Display) -> Error {
+    Error::new(ErrorKind::InvalidData, format!("{}: {msg}", path.display()))
 }
 
-/// Writes every page one route expands to and answers with the canonical URL of
-/// each, which is what the sitemap lists -- so it can neither miss a page nor
-/// name one that was never written. A route emitted without the layout is a
-/// fragment rather than a page, and is not a URL to advertise.
-fn write_pages(
-    route: &routes::Route,
-    templates: &routes::Templates,
-    site: &fill::Value,
-    dist: &Path,
-) -> Result<Vec<String>> {
-    let urls = routes::expand(route, site)
-        .map_err(invalid_data)?
+fn load_posts(dir: &Path) -> Result<Vec<Post>> {
+    let mut paths: Vec<PathBuf> = fs::read_dir(dir)
+        .map_err(|e| invalid(dir, format!("cannot read content directory ({e})")))?
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .filter(|p| p.extension().is_some_and(|x| x == "md"))
+        .collect();
+    paths.sort();
+
+    paths
         .iter()
-        .map(|page| {
-            let html = routes::render(route, templates, site, page).map_err(invalid_data)?;
-            disk::write(dist, &page.out, html)?;
-            Ok(routes::canonical(&page.out))
+        .map(|path| {
+            let raw = fs::read_to_string(path)?;
+            let slug = path
+                .file_stem()
+                .map(|s| s.to_string_lossy().to_string())
+                .ok_or_else(|| invalid(path, "no filename"))?;
+            content::parse(&raw, &slug).map_err(|e| invalid(path, e))
+        })
+        .collect()
+}
+
+pub fn list_files(dir: &Path) -> Result<Vec<(PathBuf, PathBuf)>> {
+    fn walk(dir: &Path, prefix: &Path, into: &mut Vec<(PathBuf, PathBuf)>) -> Result<()> {
+        let mut entries: Vec<PathBuf> = fs::read_dir(dir)?
+            .filter_map(|e| e.ok())
+            .map(|e| e.path())
+            .collect();
+        entries.sort();
+        for path in entries {
+            let Some(name) = path.file_name() else {
+                continue;
+            };
+            let rel = prefix.join(name);
+            match path.is_dir() {
+                true => walk(&path, &rel, into)?,
+                false => into.push((rel, path)),
+            }
+        }
+        Ok(())
+    }
+
+    let mut files = Vec::new();
+    if dir.is_dir() {
+        walk(dir, Path::new(""), &mut files)?;
+    }
+    Ok(files)
+}
+
+fn clean(dist: &Path) -> Result<()> {
+    match fs::remove_dir_all(dist) {
+        Err(e) if e.kind() == ErrorKind::NotFound => Ok(()),
+        other => other,
+    }
+}
+
+fn prepare(dist: &Path, rel: impl AsRef<Path>) -> Result<PathBuf> {
+    let path = dist.join(rel);
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    Ok(path)
+}
+
+fn write(dist: &Path, rel: impl AsRef<Path>, contents: impl AsRef<[u8]>) -> Result<()> {
+    fs::write(prepare(dist, rel)?, contents)
+}
+
+fn write_page(dist: &Path, ctx: Ctx, page: &Page) -> Result<String> {
+    let reload = ctx.live_reload.then(dev::live_reload);
+    let html = render::layout(page, ctx.year, reload.as_deref());
+    let path = format!("{}index.html", page.canonical.trim_start_matches('/'));
+    write(dist, path, html)?;
+    Ok(page.canonical.to_string())
+}
+
+pub fn build(root: &Path, dist: &Path, ctx: Ctx) -> Result<()> {
+    let posts = content::newest_first(
+        load_posts(&root.join("content/blog"))?
+            .into_iter()
+            .filter(|p| ctx.drafts || !p.draft)
+            .collect(),
+    );
+
+    clean(dist)?;
+
+    let tags = content::tag_counts(&posts);
+    let pages = [
+        render::home(&posts, ctx.year),
+        render::blog_index(&posts),
+        render::tags_index(&tags),
+    ];
+    let listed: Vec<String> = pages
+        .iter()
+        .map(|page| write_page(dist, ctx, page))
+        .collect::<Result<Vec<String>>>()?;
+
+    let post_urls: Vec<String> = posts
+        .iter()
+        .map(|post| {
+            let url = post_url(&post.slug);
+            write_page(dist, ctx, &render::post_page(post, &url))?;
+            write(
+                dist,
+                format!("{}.html", fragment_url(&post.slug).trim_start_matches('/')),
+                render::post_fragment(post),
+            )?;
+            Ok(url)
         })
         .collect::<Result<Vec<String>>>()?;
 
-    Ok(match route.layout {
-        true => urls,
-        false => Vec::new(),
-    })
-}
+    let tag_urls: Vec<String> = tags
+        .iter()
+        .map(|(tag, _)| {
+            let url = tag_url(tag);
+            let tagged: Vec<&Post> = posts
+                .iter()
+                .filter(|p| p.tags.iter().any(|t| t == tag))
+                .collect();
+            write_page(dist, ctx, &render::tag_page(tag, &tagged, &url))
+        })
+        .collect::<Result<Vec<String>>>()?;
 
-fn invalid_data(msg: String) -> std::io::Error {
-    std::io::Error::new(std::io::ErrorKind::InvalidData, msg)
-}
+    let all: Vec<&Post> = posts.iter().collect();
+    write(dist, "rss.xml", feeds::rss(&all))?;
+    write(
+        dist,
+        "sitemap.xml",
+        feeds::sitemap(&[listed, post_urls, tag_urls].concat()),
+    )?;
 
-fn stylesheet_error(name: &str, css: &str, err: css::Error, at: usize) -> std::io::Error {
-    let line = fill::line_at(css, at);
-    std::io::Error::new(
-        std::io::ErrorKind::InvalidData,
-        format!("stylesheet: {err} at line {line} of {name}"),
-    )
+    let static_dir = root.join("static");
+    list_files(&static_dir)?
+        .iter()
+        .try_for_each(|(rel, src)| fs::copy(src, prepare(dist, rel)?).map(|_| ()))
 }

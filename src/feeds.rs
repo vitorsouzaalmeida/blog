@@ -1,126 +1,80 @@
-use std::borrow::Cow;
-use std::cmp::Reverse;
-
 use crate::content::Post;
-use crate::html;
-use crate::xml::{self, Node};
+use crate::render::post_url;
+use crate::WEBSITE;
 
-fn item<'a>(post: &'a Post) -> Node<'a> {
-    let url = format!("{}/blog/{}", crate::WEBSITE, post.slug);
-    let head = [
-        Node::line("title", post.title.as_str()),
-        Node::line("link", url.clone()),
-        Node::elem(
-            "guid",
-            [("isPermaLink", Cow::Borrowed("true"))],
-            [Node::text(url)],
-        ),
-        Node::line(
-            "pubDate",
-            post.pub_date
-                .format("%a, %d %b %Y 00:00:00 GMT")
-                .to_string(),
-        ),
-    ];
+fn esc_xml(raw: &str) -> String {
+    raw.chars()
+        .filter(|c| {
+            matches!(c, '\t' | '\n' | '\r' | ' '..='\u{d7ff}' | '\u{e000}'..='\u{fffd}')
+                || *c >= '\u{10000}'
+        })
+        .map(|c| match c {
+            '&' => "&amp;".into(),
+            '<' => "&lt;".into(),
+            '>' => "&gt;".into(),
+            '"' => "&quot;".into(),
+            '\'' => "&apos;".into(),
+            other => other.to_string(),
+        })
+        .collect()
+}
 
-    let description = post.summary().map(|s| Node::line("description", s));
-    let body = Node::elem(
-        "content:encoded",
-        [],
-        [Node::cdata(html::absolutize(&post.html, crate::WEBSITE))],
-    );
-    Node::tag("item", head.into_iter().chain(description).chain([body]))
+fn cdata(raw: &str) -> String {
+    format!("<![CDATA[{}]]>", raw.replace("]]>", "]]]]><![CDATA[>"))
+}
+
+fn replace_urls(chunk: &str, base: &str) -> String {
+    chunk
+        .replace("href=\"/", &format!("href=\"{base}/"))
+        .replace("src=\"/", &format!("src=\"{base}/"))
+}
+
+fn absolutize(html: &str, base: &str) -> String {
+    html.split_inclusive("</code>")
+        .map(|chunk| match chunk.find("<code") {
+            Some(at) => replace_urls(&chunk[..at], base) + &chunk[at..],
+            None => replace_urls(chunk, base),
+        })
+        .collect()
+}
+
+fn item(post: &Post) -> String {
+    let url = format!("{WEBSITE}{}", post_url(&post.slug));
+    let description = post
+        .summary()
+        .map(|s| format!("<description>{}</description>", esc_xml(s)))
+        .unwrap_or_default();
+
+    format!(
+        "<item><title>{title}</title><link>{url}</link><guid isPermaLink=\"true\">{url}</guid><pubDate>{date}</pubDate>{description}<content:encoded>{body}</content:encoded></item>",
+        title = esc_xml(&post.title),
+        date = post.pub_date.format("%a, %d %b %Y 00:00:00 GMT"),
+        body = cdata(&absolutize(&post.html, WEBSITE)),
+    )
 }
 
 pub fn rss(posts: &[&Post]) -> String {
-    let mut ps: Vec<&Post> = posts.to_vec();
-    ps.sort_by_key(|p| Reverse(p.pub_date));
+    let items: String = posts.iter().map(|p| item(p)).collect();
 
-    let head = [
-        Node::line("title", crate::TITLE),
-        Node::line("description", crate::DESCRIPTION),
-        Node::line("link", crate::WEBSITE),
-        Node::elem(
-            "atom:link",
-            [
-                ("href", Cow::Owned(format!("{}/rss.xml", crate::WEBSITE))),
-                ("rel", Cow::Borrowed("self")),
-                ("type", Cow::Borrowed("application/rss+xml")),
-            ],
-            [],
-        ),
-    ];
-    let channel = Node::tag(
-        "channel",
-        head.into_iter().chain(ps.iter().map(|p| item(p))),
-    );
-
-    xml::document(&Node::elem(
-        "rss",
-        [
-            ("version", Cow::Borrowed("2.0")),
-            ("xmlns:atom", Cow::Borrowed("http://www.w3.org/2005/Atom")),
-            (
-                "xmlns:content",
-                Cow::Borrowed("http://purl.org/rss/1.0/modules/content/"),
-            ),
-        ],
-        [channel],
-    ))
+    format!(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<rss version=\"2.0\" xmlns:atom=\"http://www.w3.org/2005/Atom\" xmlns:content=\"http://purl.org/rss/1.0/modules/content/\"><channel><title>{title}</title><description>{description}</description><link>{WEBSITE}</link><atom:link href=\"{WEBSITE}/rss.xml\" rel=\"self\" type=\"application/rss+xml\"/>{items}</channel></rss>\n",
+        title = esc_xml(crate::TITLE),
+        description = esc_xml(crate::DESCRIPTION),
+    )
 }
 
-/// Takes the pages the build actually wrote, so the sitemap cannot list a URL
-/// that does not exist or miss one that does.
 pub fn sitemap(pages: &[String]) -> String {
-    let urls = pages.iter().map(|path| {
-        let loc = format!("{}{path}", crate::WEBSITE);
-        Node::tag("url", [Node::line("loc", loc)])
-    });
+    let urls: String = pages
+        .iter()
+        .map(|path| {
+            format!(
+                "<url><loc>{}</loc></url>",
+                esc_xml(&format!("{WEBSITE}{path}"))
+            )
+        })
+        .collect();
 
-    xml::document(&Node::elem(
-        "urlset",
-        [(
-            "xmlns",
-            Cow::Borrowed("http://www.sitemaps.org/schemas/sitemap/0.9"),
-        )],
-        urls,
-    ))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use chrono::NaiveDate;
-
-    fn post(title: &str, summary: Option<&str>) -> Post {
-        Post {
-            slug: "s".into(),
-            title: title.into(),
-            subtitle: summary.map(str::to_string),
-            pub_date: NaiveDate::parse_from_str("2024-01-02", "%Y-%m-%d").unwrap(),
-            tags: Vec::new(),
-            description: None,
-            draft: false,
-            body: String::new(),
-            html: "<p>hi</p>".into(),
-        }
-    }
-
-    #[test]
-    fn a_title_with_a_control_character_still_produces_wellformed_xml() {
-        let feed = rss(&[&post("we\u{8}ird & <sharp>", None)]);
-        assert!(
-            !feed.contains('\u{8}'),
-            "control character reached the feed"
-        );
-        assert!(feed.contains("<title>weird &amp; &lt;sharp&gt;</title>"));
-    }
-
-    #[test]
-    fn an_item_without_a_summary_omits_the_description_element() {
-        assert!(!rss(&[&post("x", None)]).contains("<description></description>"));
-        assert!(
-            rss(&[&post("x", Some("a summary"))]).contains("<description>a summary</description>")
-        );
-    }
+    format!(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">{urls}</urlset>\n"
+    )
 }

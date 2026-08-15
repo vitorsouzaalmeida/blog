@@ -1,15 +1,16 @@
-# Cloudflare Workers static-asset headers. Rules are kept non-overlapping on
-# Cache-Control so there is no question about which one wins.
-
 /*
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
 
-# Filenames are stable and the bytes never change under them.
-/fonts/*
-  Cache-Control: public, max-age=31536000, immutable
+/blog/*/fragment
+  X-Robots-Tag: noindex
 
-# Post media: not content-addressed, so a month rather than a year.
+/htmx.min.js
+  Cache-Control: public, max-age=86400
+
+/style.css
+  Cache-Control: public, max-age=86400
+
 /introbigo/*
   Cache-Control: public, max-age=2592000
 /jsonparser/*
