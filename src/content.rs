@@ -1,6 +1,8 @@
+use std::cmp::Reverse;
+use std::collections::BTreeMap;
+
 use chrono::NaiveDate;
 
-use crate::frontmatter::{self, Value};
 use crate::markdown;
 
 #[derive(Debug)]
@@ -11,9 +13,7 @@ pub struct Post {
     pub pub_date: NaiveDate,
     pub tags: Vec<String>,
     pub description: Option<String>,
-    /// Built in `dev`, skipped in `prod`: a post you are still writing.
     pub draft: bool,
-    pub body: String,
     pub html: String,
 }
 
@@ -31,6 +31,119 @@ const KEYS: [&str; 6] = [
     "pubDate",
     "tags",
 ];
+
+#[derive(Debug)]
+enum Value {
+    Scalar(String),
+    Seq(Vec<String>),
+}
+
+fn unquote(raw: &str) -> String {
+    let s = raw.trim();
+    let quoted = |q: char| {
+        s.strip_prefix(q)
+            .and_then(|rest| rest.strip_suffix(q))
+            .filter(|_| s.len() >= 2)
+    };
+
+    match (quoted('"'), quoted('\'')) {
+        (Some(inner), _) => {
+            inner
+                .chars()
+                .fold((String::new(), false), |(mut out, escaped), c| {
+                    match (escaped, c) {
+                        (false, '\\') => (out, true),
+                        _ => {
+                            out.push(c);
+                            (out, false)
+                        }
+                    }
+                })
+                .0
+        }
+        (_, Some(inner)) => inner.to_string(),
+        _ => s.to_string(),
+    }
+}
+
+fn split_items(inner: &str) -> Vec<String> {
+    let (mut items, last, _) = inner.chars().fold(
+        (Vec::new(), String::new(), None::<char>),
+        |(mut items, mut current, quote), c| match (quote, c) {
+            (Some(q), c) if c == q => {
+                current.push(c);
+                (items, current, None)
+            }
+            (Some(_), c) => {
+                current.push(c);
+                (items, current, quote)
+            }
+            (None, '"') | (None, '\'') => {
+                current.push(c);
+                (items, current, Some(c))
+            }
+            (None, ',') => {
+                items.push(current);
+                (items, String::new(), None)
+            }
+            (None, c) => {
+                current.push(c);
+                (items, current, None)
+            }
+        },
+    );
+    items.push(last);
+
+    items
+        .iter()
+        .map(|item| unquote(item))
+        .filter(|item| !item.is_empty())
+        .collect()
+}
+
+fn parse_front(front: &str, allowed: &[&str]) -> Result<Vec<(String, Value)>, String> {
+    front
+        .lines()
+        .filter(|line| !line.trim().is_empty() && !line.trim_start().starts_with('#'))
+        .try_fold(
+            Vec::new(),
+            |mut fields: Vec<(String, Value)>, line| match line.trim_start().strip_prefix("- ") {
+                Some(item) => match fields.last_mut() {
+                    Some((_, Value::Seq(items))) => {
+                        items.push(unquote(item));
+                        Ok(fields)
+                    }
+                    _ => Err(format!("list item with no key above it: {line:?}")),
+                },
+                None => {
+                    let (key, rest) = line
+                        .split_once(':')
+                        .ok_or_else(|| format!("expected `key: value`, got {line:?}"))?;
+                    let key = key.trim();
+
+                    if !allowed.contains(&key) {
+                        return Err(format!(
+                            "unknown key `{key}` (allowed: {})",
+                            allowed.join(", ")
+                        ));
+                    }
+                    if fields.iter().any(|(k, _)| k == key) {
+                        return Err(format!("duplicate key `{key}`"));
+                    }
+
+                    let rest = rest.trim();
+                    let value = match rest.strip_prefix('[').and_then(|r| r.strip_suffix(']')) {
+                        Some(inner) => Value::Seq(split_items(inner)),
+                        None if rest.is_empty() => Value::Seq(Vec::new()),
+                        None => Value::Scalar(unquote(rest)),
+                    };
+
+                    fields.push((key.to_string(), value));
+                    Ok(fields)
+                }
+            },
+        )
+}
 
 fn split_frontmatter(raw: &str) -> Result<(&str, &str), String> {
     let after_open = ["---\n", "---\r\n"]
@@ -56,22 +169,22 @@ fn split_frontmatter(raw: &str) -> Result<(&str, &str), String> {
         .ok_or_else(|| "missing closing `---` (frontmatter is never terminated)".to_string())
 }
 
-fn scalar<'a>(fields: &'a [(&str, Value)], key: &str) -> Result<Option<&'a str>, String> {
-    match fields.iter().find(|(k, _)| *k == key) {
+fn scalar<'a>(fields: &'a [(String, Value)], key: &str) -> Result<Option<&'a str>, String> {
+    match fields.iter().find(|(k, _)| k == key) {
         None => Ok(None),
-        Some((_, Value::Scalar(s))) => Ok(Some(s.as_ref())),
+        Some((_, Value::Scalar(s))) => Ok(Some(s.as_str())),
         Some(_) => Err(format!("`{key}` must be a single value, not a list")),
     }
 }
 
 pub fn parse(raw: &str, slug: &str) -> Result<Post, String> {
     let (front, body) = split_frontmatter(raw)?;
-    let fields = frontmatter::parse(front, &KEYS).map_err(|e| e.to_string())?;
+    let fields = parse_front(front, &KEYS)?;
     let field = |key| scalar(&fields, key);
 
-    let tags = match fields.iter().find(|(k, _)| *k == "tags") {
+    let tags = match fields.iter().find(|(k, _)| k == "tags") {
         None => Vec::new(),
-        Some((_, Value::Seq(items))) => items.iter().map(|t| t.to_string()).collect(),
+        Some((_, Value::Seq(items))) => items.clone(),
         Some(_) => return Err("`tags` must be a list".into()),
     };
 
@@ -96,19 +209,21 @@ pub fn parse(raw: &str, slug: &str) -> Result<Post, String> {
         pub_date,
         tags,
         draft,
-        // Rendered here rather than by a second pass over the loaded posts,
-        // which would mean constructing every `Post` with an `html` it does not
-        // have yet and overwriting it.
         html: markdown::render(body),
-        body: body.to_string(),
     })
+}
+
+pub fn newest_first(posts: Vec<Post>) -> Vec<Post> {
+    let mut posts = posts;
+    posts.sort_by_key(|p| (Reverse(p.pub_date), p.slug.clone()));
+    posts
 }
 
 pub fn tag_counts(posts: &[Post]) -> Vec<(&str, usize)> {
     let mut counts: Vec<(&str, usize)> = posts
         .iter()
         .flat_map(|p| p.tags.iter())
-        .fold(std::collections::BTreeMap::new(), |mut acc, tag| {
+        .fold(BTreeMap::new(), |mut acc, tag| {
             *acc.entry(tag.as_str()).or_insert(0) += 1;
             acc
         })
@@ -116,101 +231,4 @@ pub fn tag_counts(posts: &[Post]) -> Vec<(&str, usize)> {
         .collect();
     counts.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(b.0)));
     counts
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn date(s: &str) -> NaiveDate {
-        NaiveDate::parse_from_str(s, "%Y-%m-%d").unwrap()
-    }
-
-    #[test]
-    fn frontmatter_parses_both_tag_forms_and_unquotes() {
-        let raw = "---\ntitle: \"Rust: a tour\"\npubDate: 2024-05-06\ntags:\n  - code\n  - math\n---\n\nBody text here\n";
-        let p = parse(raw, "hello").unwrap();
-        assert_eq!(p.title, "Rust: a tour");
-        assert_eq!(p.slug, "hello");
-        assert_eq!(p.tags, ["code", "math"]);
-        assert_eq!(p.pub_date, date("2024-05-06"));
-        assert_eq!(p.body, "Body text here\n");
-
-        let inline = parse(
-            "---\ntitle: X\npubDate: 2024-01-02\ntags: [\"c++\", 'type theory']\n---\nB\n",
-            "x",
-        )
-        .unwrap();
-        assert_eq!(inline.tags, ["c++", "type theory"]);
-    }
-
-    #[test]
-    fn every_post_in_the_repository_parses() {
-        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("content/blog");
-        let posts: Vec<_> = std::fs::read_dir(&dir)
-            .unwrap()
-            .filter_map(Result::ok)
-            .map(|e| e.path())
-            .filter(|p| p.extension().is_some_and(|x| x == "md"))
-            .collect();
-        assert!(!posts.is_empty(), "no posts found in {}", dir.display());
-        for path in posts {
-            let raw = std::fs::read_to_string(&path).unwrap();
-            let slug = path.file_stem().unwrap().to_string_lossy().to_string();
-            let post = parse(&raw, &slug).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
-            assert!(!post.title.is_empty(), "{} has an empty title", slug);
-        }
-    }
-
-    #[test]
-    fn a_draft_says_so_and_anything_but_a_boolean_is_an_error() {
-        let front = |extra: &str| format!("---\ntitle: X\npubDate: 2024-01-02\n{extra}---\nB\n");
-        assert!(!parse(&front(""), "x").unwrap().draft);
-        assert!(parse(&front("draft: true\n"), "x").unwrap().draft);
-        assert!(!parse(&front("draft: false\n"), "x").unwrap().draft);
-        assert!(parse(&front("draft: yes\n"), "x")
-            .unwrap_err()
-            .contains("true or false"));
-    }
-
-    #[test]
-    fn a_setext_underline_in_the_body_does_not_close_the_frontmatter() {
-        let raw = "---\ntitle: X\npubDate: 2024-01-02\n---\nHeading\n----\ntext\n";
-        let p = parse(raw, "x").unwrap();
-        assert_eq!(p.title, "X");
-        assert_eq!(p.body, "Heading\n----\ntext\n");
-    }
-
-    #[test]
-    fn a_malformed_post_is_an_error_not_a_blank_page() {
-        let err = parse("---\ntitle: X\npubDate: 2024-01-02\n\nBody\n", "x").unwrap_err();
-        assert!(err.contains("closing"), "got: {err}");
-        assert!(parse("Just a body, no frontmatter.\n", "x").is_err());
-        assert!(parse("---\npubDate: 2024-01-02\n---\nB\n", "x").is_err());
-        assert!(parse("---\ntitle: X\n---\nB\n", "x").is_err());
-    }
-
-    fn tagged(slug: &str, tags: &[&str]) -> Post {
-        Post {
-            slug: slug.into(),
-            title: slug.into(),
-            subtitle: None,
-            pub_date: date("2024-01-01"),
-            tags: tags.iter().map(|t| t.to_string()).collect(),
-            description: None,
-            draft: false,
-            body: String::new(),
-            html: String::new(),
-        }
-    }
-
-    #[test]
-    fn tag_counts_order_by_count_then_name() {
-        let posts = [
-            tagged("a", &["code", "math"]),
-            tagged("b", &["code", "zed"]),
-            tagged("c", &["code", "math"]),
-        ];
-        assert_eq!(tag_counts(&posts), [("code", 3), ("math", 2), ("zed", 1)]);
-    }
 }

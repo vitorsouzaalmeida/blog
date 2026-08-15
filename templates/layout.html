@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>{{title}}</title>
+<meta name="description" content="{{description}}">
+<meta name="author" content="{{author}}">
+<meta property="og:title" content="{{title}}">
+<meta property="og:description" content="{{description}}">
+<meta property="og:url" content="{{website}}{{canonical}}">
+<meta property="og:image" content="{{website}}/og_default.jpg">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="{{website}}{{canonical}}">
+<link rel="alternate" type="application/rss+xml" title="{{site_title}}" href="/rss.xml">
+<link rel="stylesheet" href="/style.css">
+<script src="/htmx.min.js" defer></script>
+{{reload}}</head>
+<body hx-boost="true">
+<main>
+{{body}}</main>
+<hr>
+<p class="meta">© {{year}} {{author}} · <a href="/rss.xml" hx-boost="false">rss</a> · <a href="https://github.com/vitorsouzaalmeida/blog" hx-boost="false" rel="noreferrer noopener">source</a></p>
+</body>
+</html>
