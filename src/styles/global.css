@@ -1,0 +1,61 @@
+:root {
+  color-scheme: light;
+  color: #000;
+  background: #fff;
+}
+
+body {
+  max-width: 100ch;
+  overflow-wrap: anywhere;
+}
+
+.posts time {
+  white-space: nowrap;
+}
+
+pre {
+  overflow-x: auto;
+  tab-size: 4;
+}
+
+img,
+video {
+  max-width: 100%;
+  height: auto;
+}
+
+table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  border: 1px solid;
+  padding: 0.25em;
+}
+
+math {
+  font-family: math;
+}
+
+math[display="block"] {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.skip-link {
+  position: absolute;
+  top: 0;
+  left: 0;
+  background: #fff;
+  transform: translateY(-100%);
+}
+
+.skip-link:focus {
+  transform: none;
+}

@@ -1,3 +1,0 @@
-- Functional style: pure, side-effect free, no mutable state
-- Prefer borrowing over ownership
-- Avoid unnecessary allocations; prefer `&str` over `String`

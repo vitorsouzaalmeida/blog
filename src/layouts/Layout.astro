@@ -1,0 +1,45 @@
+---
+import { site } from '../site';
+import '../styles/global.css';
+
+type Props = {
+  readonly title?: string;
+  readonly description?: string;
+  readonly canonical: string;
+  readonly noindex?: boolean;
+};
+
+const { title = site.title, description = site.description, canonical, noindex = false } = Astro.props;
+const year = new Date().getFullYear();
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="author" content={site.author} />
+    {noindex && <meta name="robots" content="noindex" />}
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={new URL(canonical, site.url)} />
+    <meta property="og:image" content={new URL('/og_default.jpg', site.url)} />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="canonical" href={new URL(canonical, site.url)} />
+    <link rel="alternate" type="application/rss+xml" title={site.title} href="/rss.xml" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <main id="main">
+      <slot />
+    </main>
+    <footer>
+      <hr />
+      <p>© {year} {site.author} · <a href="/rss.xml">rss</a> · <a href={site.source} rel="noreferrer noopener">source</a></p>
+    </footer>
+  </body>
+</html>

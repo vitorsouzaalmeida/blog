@@ -1,10 +1,6 @@
 ---
 title: Introduction to the Untyped Lambda Calculus (β-reduction and α-conversion)
 pubDate: 2025-11-04
-tags:
-  - code
-  - computer-science
-  - math
 ---
 
 [Lambda calculus](https://en.wikipedia.org/wiki/Lambda_calculus) is a simple programming language, and a model of computation (akin to Turing machines and recursive functions).

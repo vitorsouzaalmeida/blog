@@ -1,7 +1,9 @@
-# build output
+# dependencies and build output
+node_modules/
+.astro/
 dist/
 
-# rust
+# legacy local build cache
 /target/
 
 # environment variables
@@ -13,4 +15,3 @@ dist/
 
 # editor / tooling caches
 .vscode
-.wrangler/

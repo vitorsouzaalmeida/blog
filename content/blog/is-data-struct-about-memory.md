@@ -1,9 +1,6 @@
 ---
 title: Is Data Struct about memory?
 pubDate: 2026-07-27
-tags:
-    - math
-    - computer-science
 ---
 
 If you think about data structures, you might immediately relate them to memory. Still, it is not the only way to think about them, and it is actually completely possible to discuss data structures without ever involving memory.

@@ -1,8 +1,6 @@
 ---
 title: Building a JSON Parser from scratch with JS
 pubDate: 2023-08-12
-tags:
-  - code
 ---
 
 ## Introduction

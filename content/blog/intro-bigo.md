@@ -1,9 +1,6 @@
 ---
 title: Introduction to Big O notation
 pubDate: 2023-08-12
-tags:
-  - code
-  - math
 ---
 
 ### Introduction

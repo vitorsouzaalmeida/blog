@@ -1,0 +1,9 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { site } from '../site';
+---
+
+<Layout title={`Page not found | ${site.title}`} canonical="/404/" noindex>
+  <h1>Page not found</h1>
+  <p>This page does not exist. You can <a href="/">return home</a>.</p>
+</Layout>

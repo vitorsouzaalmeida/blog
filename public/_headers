@@ -2,14 +2,8 @@
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
 
-/blog/*/fragment
-  X-Robots-Tag: noindex
-
-/htmx.min.js
-  Cache-Control: public, max-age=86400
-
-/style.css
-  Cache-Control: public, max-age=86400
+/_astro/*
+  Cache-Control: public, max-age=31536000, immutable
 
 /introbigo/*
   Cache-Control: public, max-age=2592000
