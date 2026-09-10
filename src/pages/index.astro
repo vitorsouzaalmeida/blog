@@ -10,12 +10,26 @@ const age = new Date().getFullYear() - site.birthYear;
 
 <Layout canonical="/">
   <h1>{site.title}</h1>
-  <p>Living in Brazil, {age}yo. In my free time, I like to learn about CS, philosophy, read books/mangas, care for my health, and occasionally write something here.</p>
+  <p>
+    Living in Brazil, {age}yo. In my free time, I like to learn about CS,
+    philosophy, read books/mangas, care for my health, and occasionally write
+    something here.
+  </p>
   <nav aria-label="Links">
     <ul class="links" role="list">
-      <li><a href={site.github} rel="noreferrer noopener">github</a></li>
-      <li><a href={site.linkedin} rel="noreferrer noopener">linkedin</a></li>
-      <li><a href="/rss.xml">rss</a></li>
+      <li>
+        <a href={site.github} rel="noreferrer noopener">
+          github
+        </a>
+      </li>
+      <li>
+        <a href={site.linkedin} rel="noreferrer noopener">
+          linkedin
+        </a>
+      </li>
+      <li>
+        <a href="/rss.xml">rss</a>
+      </li>
     </ul>
   </nav>
   <h2>posts</h2>

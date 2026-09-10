@@ -9,7 +9,12 @@ type Props = {
   readonly noindex?: boolean;
 };
 
-const { title = site.title, description = site.description, canonical, noindex = false } = Astro.props;
+const {
+  title = site.title,
+  description = site.description,
+  canonical,
+  noindex = false,
+} = Astro.props;
 const year = new Date().getFullYear();
 ---
 
@@ -30,16 +35,28 @@ const year = new Date().getFullYear();
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="canonical" href={new URL(canonical, site.url)} />
-    <link rel="alternate" type="application/rss+xml" title={site.title} href="/rss.xml" />
+    <link
+      rel="alternate"
+      type="application/rss+xml"
+      title={site.title}
+      href="/rss.xml"
+    />
   </head>
   <body>
-    <a class="skip-link" href="#main">Skip to content</a>
+    <a class="skip-link" href="#main">
+      Skip to content
+    </a>
     <main id="main">
       <slot />
     </main>
     <footer>
       <hr />
-      <p>© {year} {site.author} · <a href="/rss.xml">rss</a> · <a href={site.source} rel="noreferrer noopener">source</a></p>
+      <p>
+        © {year} {site.author} · <a href="/rss.xml">rss</a> ·{' '}
+        <a href={site.source} rel="noreferrer noopener">
+          source
+        </a>
+      </p>
     </footer>
   </body>
 </html>

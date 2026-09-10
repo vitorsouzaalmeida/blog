@@ -10,7 +10,9 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "check": "astro check"
+    "check": "astro check",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "@astrojs/markdown-remark": "^7.3.0",
@@ -25,6 +27,8 @@
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
     "@types/hast": "^3.0.5",
+    "prettier": "^3.9.6",
+    "prettier-plugin-astro": "^1.0.0",
     "typescript": "^6.0.3"
   }
 }

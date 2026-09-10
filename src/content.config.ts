@@ -8,12 +8,14 @@ const blog = defineCollection({
     pattern: '*.md',
     generateId: ({ entry }) => entry.replace(/\.md$/, ''),
   }),
-  schema: z.object({
-    title: z.string(),
-    pubDate: z.coerce.date(),
-    subtitle: z.string().optional(),
-    description: z.string().optional(),
-  }).strict(),
+  schema: z
+    .object({
+      title: z.string(),
+      pubDate: z.coerce.date(),
+      subtitle: z.string().optional(),
+      description: z.string().optional(),
+    })
+    .strict(),
 });
 
 export const collections = { blog };

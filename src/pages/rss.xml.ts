@@ -5,7 +5,8 @@ import { getPosts, postUrl, summary, type Post } from '../lib/posts';
 import { site } from '../site';
 
 const feedItem = (post: Post): RSSFeedItem => {
-  if (!post.rendered) throw new Error(`Missing rendered content for ${post.id}`);
+  if (!post.rendered)
+    throw new Error(`Missing rendered content for ${post.id}`);
   const url = new URL(postUrl(post.id), site.url).href;
   return {
     title: post.data.title,

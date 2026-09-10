@@ -1,0 +1,10 @@
+node_modules/
+.astro/
+dist/
+target/
+content/
+public/
+pnpm-lock.yaml
+AGENTS*.md
+.env*
+.vscode/

@@ -11,8 +11,11 @@ const { posts } = Astro.props;
 <ul class="posts" role="list">
   {posts.map((post) => (
     <li>
-      <a href={postUrl(post.id)}>{post.data.title}</a>{' — '}
-      <time datetime={isoDate(post.data.pubDate)}>{displayDate(post.data.pubDate)}</time>
+      <a href={postUrl(post.id)}>{post.data.title}</a>
+      {' — '}
+      <time datetime={isoDate(post.data.pubDate)}>
+        {displayDate(post.data.pubDate)}
+      </time>
     </li>
   ))}
 </ul>

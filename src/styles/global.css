@@ -41,7 +41,7 @@ math {
   font-family: math;
 }
 
-math[display="block"] {
+math[display='block'] {
   display: block;
   max-width: 100%;
   overflow-x: auto;

@@ -2,26 +2,41 @@
 import type { GetStaticPaths, InferGetStaticPropsType } from 'astro';
 import { render } from 'astro:content';
 import Layout from '../../layouts/Layout.astro';
-import { displayDate, getPosts, isoDate, postUrl, summary } from '../../lib/posts';
+import {
+  displayDate,
+  getPosts,
+  isoDate,
+  postUrl,
+  summary,
+} from '../../lib/posts';
 import { site } from '../../site';
 
-export const getStaticPaths = (async () => (await getPosts()).map((post) => ({
-  params: { slug: post.id },
-  props: { post },
-}))) satisfies GetStaticPaths;
+export const getStaticPaths = (async () =>
+  (await getPosts()).map((post) => ({
+    params: { slug: post.id },
+    props: { post },
+  }))) satisfies GetStaticPaths;
 
 type Props = InferGetStaticPropsType<typeof getStaticPaths>;
 const { post } = Astro.props;
 const { Content } = await render(post);
 ---
 
-<Layout title={post.data.title} description={summary(post)} canonical={postUrl(post.id)}>
-  <nav aria-label="Back"><a href="/">← {site.author}</a></nav>
+<Layout
+  title={post.data.title}
+  description={summary(post)}
+  canonical={postUrl(post.id)}
+>
+  <nav aria-label="Back">
+    <a href="/">← {site.author}</a>
+  </nav>
   <article>
     <header>
       <h1>{post.data.title}</h1>
       <p class="meta">
-        <time datetime={isoDate(post.data.pubDate)}>{displayDate(post.data.pubDate)}</time>
+        <time datetime={isoDate(post.data.pubDate)}>
+          {displayDate(post.data.pubDate)}
+        </time>
       </p>
       {post.data.subtitle && <p class="subtitle">{post.data.subtitle}</p>}
     </header>
