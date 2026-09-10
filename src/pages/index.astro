@@ -5,15 +5,16 @@ import { getPosts } from '../lib/posts';
 import { site } from '../site';
 
 const posts = await getPosts();
-const age = new Date().getFullYear() - site.birthYear;
 ---
 
 <Layout canonical="/">
-  <h1>{site.title}</h1>
   <p>
-    Living in Brazil, {age}yo. In my free time, I like to learn about CS,
-    philosophy, read books/mangas, care for my health, and occasionally write
-    something here.
+    My interests include reading, writing, math/mathematical thinking, logic,
+    philosophy, software engineering, and care for my health. I can’t cover all
+    of them exhaustively because each one brings its own world of topics. I’m a
+    software engineer, so math and software engineering are the two topics I
+    spend most of my time on. So things like functional programming, type
+    theory, set theory, distributed systems, proofs, etc.
   </p>
   <nav aria-label="Links">
     <ul class="links" role="list">
@@ -26,9 +27,6 @@ const age = new Date().getFullYear() - site.birthYear;
         <a href={site.linkedin} rel="noreferrer noopener">
           linkedin
         </a>
-      </li>
-      <li>
-        <a href="/rss.xml">rss</a>
       </li>
     </ul>
   </nav>
