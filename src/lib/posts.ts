@@ -17,6 +17,12 @@ export const getPosts = async (): Promise<readonly Post[]> =>
 export const postUrl = (id: string) => `/blog/${id}/`;
 
 export const isoDate = (date: Date) => date.toISOString().slice(0, 10);
-export const displayDate = isoDate;
+const monthName = new Intl.DateTimeFormat('en-GB', {
+  month: 'long',
+  timeZone: 'UTC',
+});
+
+export const displayDate = (date: Date) =>
+  `${date.getUTCDate()} ${monthName.format(date)}, ${date.getUTCFullYear()}`;
 export const summary = (post: Post) =>
   post.data.description ?? post.data.subtitle;
