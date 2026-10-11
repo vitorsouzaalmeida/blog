@@ -3,15 +3,17 @@ title: Copium, metacognition, and isolating myself
 pubDate: 2026-10-09
 ---
 
-In this post I will talk about my cope with social anxiety, some doomer thoughts I had on AI, and how I’m trying to improve and develop better models to deal with it. 
+In this post, I will talk about how I cope with social anxiety, some doomer thoughts I’ve had about AI, and how I’m trying to improve and develop better models to deal with these issues.
 
 --------
 
-Only recently I noticed how good I am doing copium on social activities. For most of my life I had that difficulty but I had never run through the problem and tried to understand it. I used to think that it was just: part of who I’m; I just don't like to do it; or whatever. I could keep listing for hours different excuses I have already created to myself to justify not leaving my room.
+Only recently did I notice how good I am at using copium to avoid social activities. I used to think that it was just part of who I am, that I just don't like to hang out, or whatever. I could spend hours listing different excuses I have already made up for myself to justify not leaving my room.
 
-Social anxiety sucks because it is in the set of problems that requires some notion of [metacognition](https://en.wikipedia.org/wiki/Metacognition), which is not the easiest skill to develop. It also helps you to notice the lack of internal tooling to interact/handle your own thoughts, ideas and to spot issues on them. I’m still trying to be more self conscious and to monitoring myself. It is not possible to fix, improve, understand or talk about something you don't even know that exists - even tho still suffering because of it. Starting to notice it was funny, because I figured out I was actually isolating myself even more during the time that I was trying to identify and reduce my anxiety. So I quit all social media, stopped using Discord, and tried to follow a routine mostly of solo activities. I also became extremely doomered about AI and as a consequence I reduced my intellectual activities. I developed a lack of motivation to do the things I once was used to enjoy (I used to have an active blog - not this one, was excited about tech, was always trying to build and/or learning something, was engaged in some communities, and also health stuff like running, working out, etc). 
+I understand social anxiety as the kind of problem that requires some notion of [metacognition](https://en.wikipedia.org/wiki/Metacognition): awareness and understanding of thought processes. Developing it properly is a long road—one I haven’t completed—and it is a must-have, since it is not possible to understand or reason about a problem you don't even know exists. During a period when I was trying to reduce my anxiety, I convinced myself that it was all caused by social media, and I quit all of it, including chat apps like Discord. Of course it worked. I wasn’t talking to anyone anymore. During that time, I would never have thought it could be cope.
 
-Most of the things I thought to be the most important ones have lost their value since A.I:
+A different problem then emerged, and I started to become doomered about AI and, as a consequence, developed a lack of motivation to do the things I once used to enjoy (I used to have an active blog—not this one—and was excited about tech in general; I was always trying to build and/or learn something, was engaged in communities, and did things like running and working out).
+
+The things I thought were most important have lost their value to me (I can't yet say whether they've lost their objective value) since the rise of AI, and I'm not talking about specific activities like coding, but about intellectual activities in general. In fact, most of the value was never in the code, but in the problem it modeled.
 
 > _“After AI, intellectual contributions become unnecessary or redundant. In the case of software: the AIs write all the code, so what’s the point of writing either code or prose? The audience for those things is now severely diminished. Humans don’t write code anymore, so they won’t read blog posts about how to write code, or tutorials, or try new libraries or programming languages. In the case of mathematics: the AIs can prove theorems, write papers, explain papers, tutor students, and in the near future, they might write entire textbooks better than humans. So what’s the point of writing a paper, or a textbook? It’s superfluous._
 
@@ -19,11 +21,10 @@ Most of the things I thought to be the most important ones have lost their value
 
 > _Now apply this to every other domain of intellectual activity, and you see what the future looks like. There may be individuals building new libraries and programming languages, but no shared culture of software engineering; there may be individual students and practitioners of mathematics, but no living community of mathematicians.”_ - [No Man Is an Island](https://borretti.me/article/no-man-is-an-island) by Fernando Borretti
 
+I have discussed it with a friend, and he is more optimistic. His argument is that AI could never completely take over and devalue intellectual activity because it consists of two things:
+1. Experiencing reality and consistently building abstractions and models of it based on that experience.
+2. Inferring logical consequences from that experience.
 
-At the moment I can’t say if I agree 100% with that quote, but I do believe it is mostly right.
+To him, AI could handle the second part, but not the first one.
 
-Given all that said, I’m still a very lucky guy. Even with all the effort I’ve been putting into isolating myself, I have a very nice girlfriend, and a few friends. Both are pretty smart people and because of them I started to develop better reasoning. Trying to develop some sense of mathematical thinking has been helping as well. The ability to properly reason about abstract topics, or at least trying to do so, is extremely useful and it is how I’m trying to improve my models (knowing smart people is also good because they can easily spot theory of mind issues, or help on things like metacognition). 
-
-I’m usually very scared about social interactions, but I don’t have any solid argument to justify it, and I can’t remember a single time I felt bad after going into some discussion or hanging out. Even though during it might be a bit painful, the results were always good, and I can only remember positively about them, so it should be worth it. Given the available set of actions, isolating myself and not engaging with things around me are both far away from the best ones.
-
-
+I don't have a conclusion about the AI questions, and I can't predict the future, so I’ll leave those questions open. Anyway, given the set of options, the worst ones would be to do nothing or stop engaging with things. I’ll keep trying to improve my models and write more here.
