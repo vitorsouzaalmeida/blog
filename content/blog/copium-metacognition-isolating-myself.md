@@ -35,4 +35,4 @@ I don't have a conclusion about the AI questions, and I can't predict the future
 - Engage with different opinions so I don’t keep reinforcing my thoughts;
 - Understand what is practical and stick it with. I can’t keep reasoning how bad AI is forever given how limited my actions on it are, so my effort should be directed to what is practical for me, and how to keep improving it;
 
-That one is not practical for everyone, but working less in order to to have time to develop yourself might also help, and AI could let you do it.
+That one is not practical for everyone, but working less in order to have time to develop yourself might also help, and AI can let you do it.
