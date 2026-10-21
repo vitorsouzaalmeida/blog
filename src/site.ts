@@ -6,4 +6,5 @@ export const site = {
   github: 'https://github.com/vitorsouzaalmeida/',
   linkedin: 'https://www.linkedin.com/in/vitorsalmeida/',
   source: 'https://github.com/vitorsouzaalmeida/blog',
+  goodreads: 'https://www.goodreads.com/user/show/205216806-vitor',
 } as const;
