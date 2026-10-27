@@ -11,8 +11,13 @@ const comparePosts = (a: Post, b: Post) =>
 export const sortPosts = (posts: readonly Post[]): readonly Post[] =>
   posts.toSorted(comparePosts);
 
+export const isDraft = (post: Post) =>
+  post.filePath?.startsWith('content/drafts/') ?? false;
+
+const isVisible = (post: Post) => import.meta.env.DEV || !isDraft(post);
+
 export const getPosts = async (): Promise<readonly Post[]> =>
-  sortPosts(await getCollection('blog'));
+  sortPosts(await getCollection('blog', isVisible));
 
 export const postUrl = (id: string) => `/blog/${id}/`;
 

@@ -6,6 +6,7 @@ type Props = {
   readonly title?: string;
   readonly description?: string;
   readonly canonical: string;
+  readonly image?: string;
   readonly noindex?: boolean;
 };
 
@@ -13,6 +14,7 @@ const {
   title = site.title,
   description = site.description,
   canonical,
+  image = '/og_default.jpg',
   noindex = false,
 } = Astro.props;
 const year = new Date().getFullYear();
@@ -31,7 +33,7 @@ const year = new Date().getFullYear();
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content={new URL(canonical, site.url)} />
-    <meta property="og:image" content={new URL('/og_default.jpg', site.url)} />
+    <meta property="og:image" content={new URL(image, site.url)} />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="canonical" href={new URL(canonical, site.url)} />

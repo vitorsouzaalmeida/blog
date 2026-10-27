@@ -1,5 +1,11 @@
 ---
-import { displayDate, isoDate, postUrl, type Post } from '../lib/posts';
+import {
+  displayDate,
+  isDraft,
+  isoDate,
+  postUrl,
+  type Post,
+} from '../lib/posts';
 
 type Props = {
   readonly posts: readonly Post[];
@@ -16,6 +22,7 @@ const { posts } = Astro.props;
       <time datetime={isoDate(post.data.pubDate)}>
         {displayDate(post.data.pubDate)}
       </time>
+      {isDraft(post) && ' (draft)'}
     </li>
   ))}
 </ul>

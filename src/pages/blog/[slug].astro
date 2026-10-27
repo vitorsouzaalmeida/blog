@@ -2,6 +2,7 @@
 import type { GetStaticPaths, InferGetStaticPropsType } from 'astro';
 import { render } from 'astro:content';
 import Layout from '../../layouts/Layout.astro';
+import { cardPath } from '../../lib/assets';
 import {
   displayDate,
   getPosts,
@@ -26,6 +27,7 @@ const { Content } = await render(post);
   title={post.data.title}
   description={summary(post)}
   canonical={postUrl(post.id)}
+  image={post.data.card && cardPath(post.data.card)}
 >
   <nav aria-label="Back">
     <a href="/">← {site.author}</a>

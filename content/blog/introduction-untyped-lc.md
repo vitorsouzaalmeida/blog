@@ -27,7 +27,8 @@ As you noticed, functions are also first class values, so a function can be pass
 Computation is still about math, so computation models can be used to model mathematical problems. So, with the simple LC and its primitives (functions, variables and function applications) it is possible to model arithmetic, booleans, data structures and recursion and this technique is called Church encoding, at least nowadays. From what I know, Church didn't use this name on his book "The Calculi of Lambda-Conversion" and I don't know when people started to use it. Anyway, Church encoding let us represent pairs, booleans, optional values (e.g. none), natural numbers, lists... In fact, all functional data structures. 
 
 Since I already mentioned his book, before showing arithmetic and numbers, here's himself defining positive integers:
-<Image src="../../src/images/introlc/church-numeral-book.png" alt="Church's book defining positive integers with LC" />
+
+![Church's book defining positive integers with LC](/assets/content/introduction-untyped-lc/church-numeral-book.png)
 
 As you can see, `1` is a function applied once, and two, is a function applied twice, and so on. Any natural number can be represented by applying a function `n` times to that number:
 ```rust
